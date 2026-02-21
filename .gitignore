@@ -1,0 +1,43 @@
+# Next.js / Node.js (Frontend)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel/
+frontend/.env*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnp.*
+frontend/.eslintcache
+
+# Python / FastAPI (Backend)
+backend/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/venv/
+backend/env/
+backend/.env
+backend/.venv/
+backend/pip-log.txt
+backend/pip-delete-this-directory.txt
+
+# Database SQLite (if any used for testing)
+*.sqlite3
+*.db
+
+# macOS System Files
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDEs / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+backend/reset_db.py
+backend/reset_db2.py

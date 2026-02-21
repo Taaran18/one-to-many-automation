@@ -1,0 +1,9 @@
+fastapi==0.115.8
+uvicorn==0.34.0
+sqlalchemy
+pymysql
+python-dotenv
+cryptography
+pyjwt
+python-multipart
+fastapi-sso
