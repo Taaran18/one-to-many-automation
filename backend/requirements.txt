@@ -7,3 +7,4 @@ cryptography
 pyjwt
 python-multipart
 fastapi-sso
+httpx

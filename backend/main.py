@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
@@ -6,13 +6,14 @@ from datetime import timedelta
 
 import models, schemas, auth
 from database import engine, get_db
+from routers import leads, templates, campaigns, dashboard, whatsapp
 
 try:
     models.Base.metadata.create_all(bind=engine)
 except Exception as e:
     pass
 
-app = FastAPI()
+app = FastAPI(title="OneToMany Automation API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,10 +23,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ─── Register Routers ─────────────────────────────────────────────────────────
+app.include_router(leads.router)
+app.include_router(templates.router)
+app.include_router(campaigns.router)
+app.include_router(dashboard.router)
+app.include_router(whatsapp.router)
+
+
+# ─── Core Auth Endpoints ──────────────────────────────────────────────────────
 
 @app.get("/")
 async def root():
-    return {"status": "success", "message": "No errors here!"}
+    return {"status": "success", "message": "OneToMany Automation API"}
 
 
 @app.post("/register", response_model=schemas.UserResponse)
@@ -85,17 +95,12 @@ def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-import os
-from fastapi import Request
-
-
 @app.get("/auth/{provider}/login")
 async def auth_login(provider: str):
     if provider == "google":
         return {
             "message": "Google Login API Keys not configured. Please add GOOGLE_CLIENT_ID to .env."
         }
-
     return {"message": f"{provider} Login API Keys not configured."}
 
 
