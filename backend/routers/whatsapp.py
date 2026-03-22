@@ -14,9 +14,11 @@ BRIDGE_URL = "http://localhost:3001"
 
 
 def _get_or_create_session(user_id: int, db: Session) -> models.WhatsAppSession:
-    session = db.query(models.WhatsAppSession).filter(
-        models.WhatsAppSession.user_id == user_id
-    ).first()
+    session = (
+        db.query(models.WhatsAppSession)
+        .filter(models.WhatsAppSession.user_id == user_id)
+        .first()
+    )
     if not session:
         session = models.WhatsAppSession(user_id=user_id, status="disconnected")
         db.add(session)

@@ -43,9 +43,9 @@ def list_leads(
     if search:
         like = f"%{search}%"
         query = query.filter(
-            models.Lead.name.ilike(like) |
-            models.Lead.phone_no.ilike(like) |
-            models.Lead.email.ilike(like)
+            models.Lead.name.ilike(like)
+            | models.Lead.phone_no.ilike(like)
+            | models.Lead.email.ilike(like)
         )
     if status:
         query = query.filter(models.Lead.status == status)
@@ -59,10 +59,14 @@ def get_lead(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    lead = db.query(models.Lead).filter(
-        models.Lead.id == lead_id,
-        models.Lead.user_id == current_user.id,
-    ).first()
+    lead = (
+        db.query(models.Lead)
+        .filter(
+            models.Lead.id == lead_id,
+            models.Lead.user_id == current_user.id,
+        )
+        .first()
+    )
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     return lead
@@ -75,10 +79,14 @@ def update_lead(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    lead = db.query(models.Lead).filter(
-        models.Lead.id == lead_id,
-        models.Lead.user_id == current_user.id,
-    ).first()
+    lead = (
+        db.query(models.Lead)
+        .filter(
+            models.Lead.id == lead_id,
+            models.Lead.user_id == current_user.id,
+        )
+        .first()
+    )
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     for field, value in update.model_dump(exclude_unset=True).items():
@@ -94,10 +102,14 @@ def delete_lead(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    lead = db.query(models.Lead).filter(
-        models.Lead.id == lead_id,
-        models.Lead.user_id == current_user.id,
-    ).first()
+    lead = (
+        db.query(models.Lead)
+        .filter(
+            models.Lead.id == lead_id,
+            models.Lead.user_id == current_user.id,
+        )
+        .first()
+    )
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     db.delete(lead)
@@ -131,24 +143,29 @@ def import_leads(
 
 # ─── Lead Groups ──────────────────────────────────────────────────────────────
 
+
 @router.get("/groups/all", response_model=List[schemas.LeadGroupResponse])
 def list_groups(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    groups = db.query(models.LeadGroup).filter(
-        models.LeadGroup.user_id == current_user.id
-    ).all()
+    groups = (
+        db.query(models.LeadGroup)
+        .filter(models.LeadGroup.user_id == current_user.id)
+        .all()
+    )
     result = []
     for g in groups:
-        result.append(schemas.LeadGroupResponse(
-            id=g.id,
-            user_id=g.user_id,
-            name=g.name,
-            description=g.description,
-            created_at=g.created_at,
-            member_count=len(g.members),
-        ))
+        result.append(
+            schemas.LeadGroupResponse(
+                id=g.id,
+                user_id=g.user_id,
+                name=g.name,
+                description=g.description,
+                created_at=g.created_at,
+                member_count=len(g.members),
+            )
+        )
     return result
 
 
@@ -183,17 +200,25 @@ def add_members(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    group = db.query(models.LeadGroup).filter(
-        models.LeadGroup.id == group_id,
-        models.LeadGroup.user_id == current_user.id,
-    ).first()
+    group = (
+        db.query(models.LeadGroup)
+        .filter(
+            models.LeadGroup.id == group_id,
+            models.LeadGroup.user_id == current_user.id,
+        )
+        .first()
+    )
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
-    leads = db.query(models.Lead).filter(
-        models.Lead.id.in_(body.lead_ids),
-        models.Lead.user_id == current_user.id,
-    ).all()
+    leads = (
+        db.query(models.Lead)
+        .filter(
+            models.Lead.id.in_(body.lead_ids),
+            models.Lead.user_id == current_user.id,
+        )
+        .all()
+    )
 
     for lead in leads:
         if lead not in group.members:
@@ -208,10 +233,14 @@ def delete_group(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    group = db.query(models.LeadGroup).filter(
-        models.LeadGroup.id == group_id,
-        models.LeadGroup.user_id == current_user.id,
-    ).first()
+    group = (
+        db.query(models.LeadGroup)
+        .filter(
+            models.LeadGroup.id == group_id,
+            models.LeadGroup.user_id == current_user.id,
+        )
+        .first()
+    )
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     db.delete(group)

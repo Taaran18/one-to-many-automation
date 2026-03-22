@@ -1,6 +1,4 @@
-from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Enum, ForeignKey, Table
-)
+from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
@@ -50,10 +48,21 @@ class User(Base):
     password = Column(String(512), nullable=False)
 
     leads = relationship("Lead", back_populates="owner", cascade="all, delete-orphan")
-    lead_groups = relationship("LeadGroup", back_populates="owner", cascade="all, delete-orphan")
-    templates = relationship("Template", back_populates="owner", cascade="all, delete-orphan")
-    campaigns = relationship("Campaign", back_populates="owner", cascade="all, delete-orphan")
-    whatsapp_session = relationship("WhatsAppSession", back_populates="owner", uselist=False, cascade="all, delete-orphan")
+    lead_groups = relationship(
+        "LeadGroup", back_populates="owner", cascade="all, delete-orphan"
+    )
+    templates = relationship(
+        "Template", back_populates="owner", cascade="all, delete-orphan"
+    )
+    campaigns = relationship(
+        "Campaign", back_populates="owner", cascade="all, delete-orphan"
+    )
+    whatsapp_session = relationship(
+        "WhatsAppSession",
+        back_populates="owner",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class Lead(Base):
@@ -70,8 +79,12 @@ class Lead(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     owner = relationship("User", back_populates="leads")
-    groups = relationship("LeadGroup", secondary=lead_group_members, back_populates="members")
-    message_logs = relationship("MessageLog", back_populates="lead", cascade="all, delete-orphan")
+    groups = relationship(
+        "LeadGroup", secondary=lead_group_members, back_populates="members"
+    )
+    message_logs = relationship(
+        "MessageLog", back_populates="lead", cascade="all, delete-orphan"
+    )
 
 
 class LeadGroup(Base):
@@ -84,7 +97,9 @@ class LeadGroup(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     owner = relationship("User", back_populates="lead_groups")
-    members = relationship("Lead", secondary=lead_group_members, back_populates="groups")
+    members = relationship(
+        "Lead", secondary=lead_group_members, back_populates="groups"
+    )
     campaigns = relationship("Campaign", back_populates="lead_group")
 
 
@@ -118,7 +133,9 @@ class Campaign(Base):
     owner = relationship("User", back_populates="campaigns")
     template = relationship("Template", back_populates="campaigns")
     lead_group = relationship("LeadGroup", back_populates="campaigns")
-    message_logs = relationship("MessageLog", back_populates="campaign", cascade="all, delete-orphan")
+    message_logs = relationship(
+        "MessageLog", back_populates="campaign", cascade="all, delete-orphan"
+    )
 
 
 class MessageLog(Base):
@@ -140,7 +157,9 @@ class WhatsAppSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-    status = Column(Enum(WASessionStatus), default=WASessionStatus.disconnected, nullable=False)
+    status = Column(
+        Enum(WASessionStatus), default=WASessionStatus.disconnected, nullable=False
+    )
     last_seen = Column(DateTime(timezone=True), nullable=True)
 
     owner = relationship("User", back_populates="whatsapp_session")

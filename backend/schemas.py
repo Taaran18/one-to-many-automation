@@ -5,6 +5,7 @@ from datetime import datetime
 
 # ─── Auth Schemas ────────────────────────────────────────────────────────────
 
+
 class UserBase(BaseModel):
     email: str | None = None
     phone_no: str | None = None
@@ -27,6 +28,7 @@ class Token(BaseModel):
 
 
 # ─── Lead Schemas ─────────────────────────────────────────────────────────────
+
 
 class LeadCreate(BaseModel):
     name: str
@@ -68,6 +70,7 @@ class LeadImportItem(BaseModel):
 
 # ─── Lead Group Schemas ───────────────────────────────────────────────────────
 
+
 class LeadGroupCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -90,6 +93,7 @@ class AddMembersRequest(BaseModel):
 
 
 # ─── Template Schemas ─────────────────────────────────────────────────────────
+
 
 class TemplateCreate(BaseModel):
     name: str
@@ -114,6 +118,7 @@ class TemplateResponse(BaseModel):
 
 
 # ─── Campaign Schemas ─────────────────────────────────────────────────────────
+
 
 class CampaignCreate(BaseModel):
     name: str
@@ -149,6 +154,7 @@ class CampaignResponse(BaseModel):
 
 # ─── Message Log Schemas ──────────────────────────────────────────────────────
 
+
 class MessageLogResponse(BaseModel):
     id: int
     campaign_id: int
@@ -164,6 +170,7 @@ class MessageLogResponse(BaseModel):
 
 
 # ─── Dashboard Schemas ────────────────────────────────────────────────────────
+
 
 class DashboardStats(BaseModel):
     total_leads: int
@@ -191,6 +198,7 @@ class ScheduleItem(BaseModel):
 
 
 # ─── WhatsApp Schemas ─────────────────────────────────────────────────────────
+
 
 class WAStatusResponse(BaseModel):
     status: str

@@ -8,17 +8,43 @@ html {
 }
 
 /* ── Custom scrollbar ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
-.dark ::-webkit-scrollbar-thumb { background: #374151; }
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 99px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+}
 
 /* ── Gradient backgrounds for stat card icons ── */
-.grad-1 { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
-.grad-2 { background: linear-gradient(135deg, #06b6d4, #3b82f6); }
-.grad-3 { background: linear-gradient(135deg, #10b981, #059669); }
-.grad-4 { background: linear-gradient(135deg, #f59e0b, #ef4444); }
-.grad-5 { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
-.grad-6 { background: linear-gradient(135deg, #14b8a6, #10b981); }
-.grad-7 { background: linear-gradient(135deg, #f97316, #f59e0b); }
-.grad-8 { background: linear-gradient(135deg, #3b82f6, #6366f1); }
+.grad-1 {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+.grad-2 {
+  background: linear-gradient(135deg, #06b6d4, #3b82f6);
+}
+.grad-3 {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+.grad-4 {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+}
+.grad-5 {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+}
+.grad-6 {
+  background: linear-gradient(135deg, #14b8a6, #10b981);
+}
+.grad-7 {
+  background: linear-gradient(135deg, #f97316, #f59e0b);
+}
+.grad-8 {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+}

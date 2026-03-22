@@ -5,7 +5,10 @@ function getToken(): string | null {
   return localStorage.getItem("access_token");
 }
 
-async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+async function apiFetch(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
   const token = getToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

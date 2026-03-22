@@ -32,9 +32,11 @@ def list_templates(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return db.query(models.Template).filter(
-        models.Template.user_id == current_user.id
-    ).all()
+    return (
+        db.query(models.Template)
+        .filter(models.Template.user_id == current_user.id)
+        .all()
+    )
 
 
 @router.get("/{template_id}", response_model=schemas.TemplateResponse)
@@ -43,10 +45,14 @@ def get_template(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    t = db.query(models.Template).filter(
-        models.Template.id == template_id,
-        models.Template.user_id == current_user.id,
-    ).first()
+    t = (
+        db.query(models.Template)
+        .filter(
+            models.Template.id == template_id,
+            models.Template.user_id == current_user.id,
+        )
+        .first()
+    )
     if not t:
         raise HTTPException(status_code=404, detail="Template not found")
     return t
@@ -59,10 +65,14 @@ def update_template(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    t = db.query(models.Template).filter(
-        models.Template.id == template_id,
-        models.Template.user_id == current_user.id,
-    ).first()
+    t = (
+        db.query(models.Template)
+        .filter(
+            models.Template.id == template_id,
+            models.Template.user_id == current_user.id,
+        )
+        .first()
+    )
     if not t:
         raise HTTPException(status_code=404, detail="Template not found")
     for field, value in update.model_dump(exclude_unset=True).items():
@@ -78,10 +88,14 @@ def delete_template(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    t = db.query(models.Template).filter(
-        models.Template.id == template_id,
-        models.Template.user_id == current_user.id,
-    ).first()
+    t = (
+        db.query(models.Template)
+        .filter(
+            models.Template.id == template_id,
+            models.Template.user_id == current_user.id,
+        )
+        .first()
+    )
     if not t:
         raise HTTPException(status_code=404, detail="Template not found")
     db.delete(t)

@@ -8,7 +8,8 @@ export default function Home() {
           Welcome to the Platform
         </h1>
         <p className="text-lg text-gray-500 mb-8 max-w-md">
-          This is your private dashboard. Authentication and styling are already fully wired up!
+          This is your private dashboard. Authentication and styling are already
+          fully wired up!
         </p>
         <div className="flex gap-4">
           <Link
@@ -22,4 +23,3 @@ export default function Home() {
     </div>
   );
 }
-

@@ -33,6 +33,7 @@ app.include_router(whatsapp.router)
 
 # ─── Core Auth Endpoints ──────────────────────────────────────────────────────
 
+
 @app.get("/")
 async def root():
     return {"status": "success", "message": "OneToMany Automation API"}

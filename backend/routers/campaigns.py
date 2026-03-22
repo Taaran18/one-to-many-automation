@@ -15,8 +15,7 @@ BRIDGE_URL = "http://localhost:3001"
 
 def _resolve_template(body: str, lead: models.Lead) -> str:
     return (
-        body
-        .replace("{{name}}", lead.name or "")
+        body.replace("{{name}}", lead.name or "")
         .replace("{{phone}}", lead.phone_no or "")
         .replace("{{email}}", lead.email or "")
         .replace("{{tags}}", lead.tags or "")
@@ -25,9 +24,12 @@ def _resolve_template(body: str, lead: models.Lead) -> str:
 
 def _run_campaign(campaign_id: int, user_id: int):
     from database import SessionLocal
+
     db = SessionLocal()
     try:
-        campaign = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+        campaign = (
+            db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+        )
         if not campaign:
             return
 
@@ -45,7 +47,11 @@ def _run_campaign(campaign_id: int, user_id: int):
             try:
                 resp = httpx.post(
                     f"{BRIDGE_URL}/message/send",
-                    json={"user_id": user_id, "phone_no": f"{phone}@c.us", "message": message},
+                    json={
+                        "user_id": user_id,
+                        "phone_no": f"{phone}@c.us",
+                        "message": message,
+                    },
                     timeout=30,
                 )
                 if resp.status_code == 200 and resp.json().get("success"):
@@ -66,7 +72,11 @@ def _run_campaign(campaign_id: int, user_id: int):
         db.commit()
     except Exception as e:
         try:
-            campaign = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+            campaign = (
+                db.query(models.Campaign)
+                .filter(models.Campaign.id == campaign_id)
+                .first()
+            )
             if campaign:
                 campaign.status = "failed"
                 db.commit()
@@ -115,10 +125,14 @@ def get_campaign(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    c = db.query(models.Campaign).filter(
-        models.Campaign.id == campaign_id,
-        models.Campaign.user_id == current_user.id,
-    ).first()
+    c = (
+        db.query(models.Campaign)
+        .filter(
+            models.Campaign.id == campaign_id,
+            models.Campaign.user_id == current_user.id,
+        )
+        .first()
+    )
     if not c:
         raise HTTPException(status_code=404, detail="Campaign not found")
     return _build_response(c, db)
@@ -131,14 +145,20 @@ def update_campaign(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    c = db.query(models.Campaign).filter(
-        models.Campaign.id == campaign_id,
-        models.Campaign.user_id == current_user.id,
-    ).first()
+    c = (
+        db.query(models.Campaign)
+        .filter(
+            models.Campaign.id == campaign_id,
+            models.Campaign.user_id == current_user.id,
+        )
+        .first()
+    )
     if not c:
         raise HTTPException(status_code=404, detail="Campaign not found")
     if c.status not in ("draft", "scheduled"):
-        raise HTTPException(status_code=400, detail="Cannot edit a running or completed campaign")
+        raise HTTPException(
+            status_code=400, detail="Cannot edit a running or completed campaign"
+        )
     for field, value in update.model_dump(exclude_unset=True).items():
         setattr(c, field, value)
     if c.scheduled_at and c.status == "draft":
@@ -154,10 +174,14 @@ def delete_campaign(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    c = db.query(models.Campaign).filter(
-        models.Campaign.id == campaign_id,
-        models.Campaign.user_id == current_user.id,
-    ).first()
+    c = (
+        db.query(models.Campaign)
+        .filter(
+            models.Campaign.id == campaign_id,
+            models.Campaign.user_id == current_user.id,
+        )
+        .first()
+    )
     if not c:
         raise HTTPException(status_code=404, detail="Campaign not found")
     db.delete(c)
@@ -172,10 +196,14 @@ def start_campaign(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    c = db.query(models.Campaign).filter(
-        models.Campaign.id == campaign_id,
-        models.Campaign.user_id == current_user.id,
-    ).first()
+    c = (
+        db.query(models.Campaign)
+        .filter(
+            models.Campaign.id == campaign_id,
+            models.Campaign.user_id == current_user.id,
+        )
+        .first()
+    )
     if not c:
         raise HTTPException(status_code=404, detail="Campaign not found")
     if c.status == "running":
@@ -195,43 +223,64 @@ def get_logs(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    c = db.query(models.Campaign).filter(
-        models.Campaign.id == campaign_id,
-        models.Campaign.user_id == current_user.id,
-    ).first()
+    c = (
+        db.query(models.Campaign)
+        .filter(
+            models.Campaign.id == campaign_id,
+            models.Campaign.user_id == current_user.id,
+        )
+        .first()
+    )
     if not c:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
     offset = (page - 1) * limit
-    logs = db.query(models.MessageLog).filter(
-        models.MessageLog.campaign_id == campaign_id
-    ).offset(offset).limit(limit).all()
+    logs = (
+        db.query(models.MessageLog)
+        .filter(models.MessageLog.campaign_id == campaign_id)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
 
     result = []
     for log in logs:
-        result.append(schemas.MessageLogResponse(
-            id=log.id,
-            campaign_id=log.campaign_id,
-            lead_id=log.lead_id,
-            status=log.status,
-            sent_at=log.sent_at,
-            error_message=log.error_message,
-            lead_name=log.lead.name if log.lead else None,
-            lead_phone=log.lead.phone_no if log.lead else None,
-        ))
+        result.append(
+            schemas.MessageLogResponse(
+                id=log.id,
+                campaign_id=log.campaign_id,
+                lead_id=log.lead_id,
+                status=log.status,
+                sent_at=log.sent_at,
+                error_message=log.error_message,
+                lead_name=log.lead.name if log.lead else None,
+                lead_phone=log.lead.phone_no if log.lead else None,
+            )
+        )
     return result
 
 
 def _build_response(c: models.Campaign, db: Session) -> schemas.CampaignResponse:
     from sqlalchemy import func
-    sent = db.query(func.count(models.MessageLog.id)).filter(
-        models.MessageLog.campaign_id == c.id,
-        models.MessageLog.status == "sent",
-    ).scalar() or 0
-    failed = db.query(func.count(models.MessageLog.id)).filter(
-        models.MessageLog.campaign_id == c.id,
-        models.MessageLog.status == "failed",
-    ).scalar() or 0
+
+    sent = (
+        db.query(func.count(models.MessageLog.id))
+        .filter(
+            models.MessageLog.campaign_id == c.id,
+            models.MessageLog.status == "sent",
+        )
+        .scalar()
+        or 0
+    )
+    failed = (
+        db.query(func.count(models.MessageLog.id))
+        .filter(
+            models.MessageLog.campaign_id == c.id,
+            models.MessageLog.status == "failed",
+        )
+        .scalar()
+        or 0
+    )
     return schemas.CampaignResponse(
         id=c.id,
         user_id=c.user_id,
