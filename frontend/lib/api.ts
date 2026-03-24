@@ -1,7 +1,4 @@
-const API_BASE =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:8000"
-    : "https://one-to-many-automation.onrender.com";
+const API_BASE = "http://localhost:8000";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;

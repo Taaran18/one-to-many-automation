@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect } from "react";
 
 interface ModalProps {
   open: boolean;
@@ -11,21 +10,15 @@ interface ModalProps {
 }
 
 export default function Modal({ open, onClose, title, children }: ModalProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
 
-  if (!open || !mounted) return null;
+  if (!open) return null;
 
-  return createPortal(
+  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -57,7 +50,6 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
         </div>
         <div className="px-6 py-5">{children}</div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }

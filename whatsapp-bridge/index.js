@@ -7,7 +7,7 @@ const fs = require("fs");
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;
 const SESSIONS_DIR = path.join(__dirname, "sessions");
 
 if (!fs.existsSync(SESSIONS_DIR)) {
