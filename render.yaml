@@ -1,0 +1,33 @@
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
+  - type: web
+    name: onetomany-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # Set this in Render dashboard → Supabase connection string
+      - key: SECRET_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false          # e.g. https://your-app.vercel.app
+      - key: BRIDGE_URL
+        sync: false          # e.g. https://onetomany-bridge.onrender.com
+
+  # ── WhatsApp Bridge ──────────────────────────────────────────────────────────
+  - type: web
+    name: onetomany-bridge
+    runtime: node
+    rootDir: whatsapp-bridge
+    buildCommand: npm install
+    startCommand: node index.js
+    # NOTE: Requires a paid Render plan with a Persistent Disk mounted at /app/sessions
+    # so WhatsApp sessions survive restarts. Without it, QR re-scan is needed after
+    # every deploy or service restart.
+    envVars:
+      - key: PORT
+        value: 10000

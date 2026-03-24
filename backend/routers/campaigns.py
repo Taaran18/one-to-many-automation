@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -10,7 +11,7 @@ from dependencies import get_current_user
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
-BRIDGE_URL = "http://localhost:3001"
+BRIDGE_URL = os.getenv("BRIDGE_URL", "http://localhost:3001")
 
 
 def _resolve_template(body: str, lead: models.Lead) -> str:

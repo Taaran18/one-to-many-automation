@@ -8,9 +8,11 @@ import schemas
 from database import get_db
 from dependencies import get_current_user
 
+import os
+
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
-BRIDGE_URL = "http://localhost:3001"
+BRIDGE_URL = os.getenv("BRIDGE_URL", "http://localhost:3001")
 
 
 def _get_or_create_session(user_id: int, db: Session) -> models.WhatsAppSession:
