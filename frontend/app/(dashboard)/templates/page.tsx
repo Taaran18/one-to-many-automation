@@ -28,6 +28,8 @@ export default function TemplatesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Template | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const [form, setForm] = useState({ name: "", body: "" });
 
   const load = async () => {
@@ -71,12 +73,13 @@ export default function TemplatesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this template?")) return;
+    setDeleteError("");
     try {
       await apiDelete(`/templates/${id}`);
+      setConfirmDeleteId(null);
       load();
     } catch (err: any) {
-      alert(err.message);
+      setDeleteError(err.message);
     }
   };
 
@@ -153,7 +156,7 @@ export default function TemplatesPage() {
                     {t.name}
                   </h3>
                 </div>
-                <div className="flex gap-1.5 shrink-0">
+                <div className="flex gap-1.5 shrink-0 items-center">
                   <button
                     onClick={() => openEdit(t)}
                     className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all"
@@ -161,7 +164,7 @@ export default function TemplatesPage() {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(t.id)}
+                    onClick={() => { setDeleteError(""); setConfirmDeleteId(t.id); }}
                     className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all"
                   >
                     Delete
@@ -183,6 +186,18 @@ export default function TemplatesPage() {
           ))}
         </div>
       )}
+
+      {/* ── Delete Template Confirm Modal ── */}
+      <Modal open={confirmDeleteId !== null} onClose={() => setConfirmDeleteId(null)} title="Delete Template">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Delete this template? Campaigns using it will lose their template reference.</p>
+          {deleteError && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{deleteError}</p>}
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => setConfirmDeleteId(null)} className={`${BTN_G} flex-1`}>Cancel</button>
+            <button onClick={() => { if (confirmDeleteId) handleDelete(confirmDeleteId); }} className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all">Delete</button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={open}

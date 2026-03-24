@@ -24,9 +24,14 @@ frontend/tsconfig.tsbuildinfo
 
 # ─── WhatsApp Bridge (Node / Express) ────────
 whatsapp-bridge/node_modules/
-whatsapp-bridge/sessions/          # Puppeteer/LocalAuth session data (contains credentials)
+whatsapp-bridge/sessions/
+whatsapp-bridge/.wwebjs_cache/
+whatsapp-bridge/.wwebjs_auth/
 whatsapp-bridge/npm-debug.log*
 whatsapp-bridge/yarn-debug.log*
+
+# ─── Root package-lock ───────────────────────
+package-lock.json
 
 # ─── Backend (Python / FastAPI) ──────────────
 backend/__pycache__/

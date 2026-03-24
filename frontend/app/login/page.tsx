@@ -121,7 +121,7 @@ export default function LoginPage() {
         }
         const data = await res.json();
         localStorage.setItem("access_token", data.access_token);
-        document.cookie = `access_token=${data.access_token}; path=/; max-age=1800; SameSite=Lax`;
+        document.cookie = `access_token=${data.access_token}; path=/; max-age=28800; SameSite=Lax`;
         router.push("/dashboard");
       } else {
         const payload =

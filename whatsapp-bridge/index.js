@@ -14,7 +14,7 @@ if (!fs.existsSync(SESSIONS_DIR)) {
   fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 }
 
-// Map of user_id -> { client, status, qrBase64 }
+// Map of user_id -> { client, status, qrBase64, info }
 const sessions = new Map();
 
 function getSession(userId) {
@@ -33,7 +33,7 @@ async function createSession(userId) {
     sessions.delete(id);
   }
 
-  const session = { status: "qr_pending", qrBase64: null, client: null };
+  const session = { status: "qr_pending", qrBase64: null, client: null, info: null };
   sessions.set(id, session);
 
   const client = new Client({
@@ -48,7 +48,14 @@ async function createSession(userId) {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
+        "--disable-software-rasterizer",
+        "--disable-extensions",
+        "--disable-background-networking",
+        "--disable-default-apps",
+        "--no-first-run",
+        "--no-zygote",
       ],
+      timeout: 60000,
     },
   });
 
@@ -67,16 +74,27 @@ async function createSession(userId) {
   client.on("ready", () => {
     session.status = "connected";
     session.qrBase64 = null;
-    console.log(`[user ${id}] WhatsApp connected`);
+    try {
+      const info = client.info;
+      const rawPhone = info.wid._serialized.replace("@c.us", "").replace("@s.whatsapp.net", "");
+      session.info = {
+        name: info.pushname || "Unknown",
+        phone: "+" + rawPhone,
+        connected_at: new Date().toISOString(),
+      };
+    } catch (_) {}
+    console.log(`[user ${id}] WhatsApp connected — ${session.info?.phone}`);
   });
 
   client.on("auth_failure", () => {
     session.status = "disconnected";
+    session.info = null;
     console.log(`[user ${id}] Auth failure`);
   });
 
   client.on("disconnected", () => {
     session.status = "disconnected";
+    session.info = null;
     console.log(`[user ${id}] Disconnected`);
   });
 
@@ -111,6 +129,15 @@ app.get("/session/qr", (req, res) => {
   res.json({ status: "qr_pending", qr: session.qrBase64 });
 });
 
+app.get("/session/info", (req, res) => {
+  const { user_id } = req.query;
+  const session = getSession(user_id);
+  if (!session || session.status !== "connected") {
+    return res.status(404).json({ error: "Not connected" });
+  }
+  res.json(session.info || { name: null, phone: null, connected_at: null });
+});
+
 app.post("/session/destroy", async (req, res) => {
   const { user_id } = req.body;
   const session = getSession(user_id);
@@ -138,6 +165,7 @@ app.post("/message/send", async (req, res) => {
   }
 });
 
+app.get("/", (_req, res) => res.json({ status: "ok", service: "WhatsApp Bridge", port: PORT }));
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
 app.listen(PORT, () => {

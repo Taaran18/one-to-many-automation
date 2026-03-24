@@ -97,7 +97,13 @@ function getUserInfo(): { email: string; initial: string } {
   }
 }
 
-export default function Sidebar() {
+export default function Sidebar({
+  mobileOpen = false,
+  onMobileClose,
+}: {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { email, initial } =
@@ -110,7 +116,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 flex flex-col z-30 bg-white dark:bg-gray-950 border-r border-gray-100 dark:border-gray-800/60">
+    <aside className={`fixed left-0 top-0 h-full w-64 flex flex-col z-30 bg-white dark:bg-gray-950 border-r border-gray-100 dark:border-gray-800/60 transition-transform duration-200 ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 shrink-0">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
@@ -146,6 +152,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onMobileClose}
               className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 ${
                 active
                   ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25"
