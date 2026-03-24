@@ -230,7 +230,9 @@ export default function LeadsPage() {
     try {
       if (inGroup) {
         const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-        await fetch(`http://localhost:8000/leads/groups/${groupId}/members`, {
+        const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+        const baseUrl = process.env.NODE_ENV === "development" ? "http://localhost:8000" : "https://one-to-many-automation.onrender.com";
+        await fetch(`${baseUrl}/leads/groups/${groupId}/members`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ lead_ids: [manageGroupsLead.id] }),

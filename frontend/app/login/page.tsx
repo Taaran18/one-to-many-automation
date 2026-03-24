@@ -4,6 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
+const API_BASE =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:8000"
+    : "https://one-to-many-automation.onrender.com";
+
 const COUNTRY_CODES = [
   { code: "+91", flag: "🇮🇳", label: "+91" },
   { code: "+1", flag: "🇺🇸", label: "+1" },
@@ -110,7 +115,7 @@ export default function LoginPage() {
     try {
       if (isLogin) {
         const body = new URLSearchParams({ username, password });
-        const res = await fetch("http://localhost:8000/login", {
+        const res = await fetch(`${API_BASE}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body,
@@ -128,7 +133,7 @@ export default function LoginPage() {
           loginType === "phone"
             ? { phone_no: username, password }
             : { email: username, password };
-        const res = await fetch("http://localhost:8000/register", {
+        const res = await fetch(`${API_BASE}/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -421,7 +426,7 @@ export default function LoginPage() {
             <button
               onClick={() =>
                 (window.location.href =
-                  "http://localhost:8000/auth/google/login")
+                  `${API_BASE}/auth/google/login`)
               }
               type="button"
               className="w-full h-12 flex items-center justify-center gap-3 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-2xl text-sm font-semibold text-gray-700 transition-all"
@@ -451,7 +456,7 @@ export default function LoginPage() {
               <button
                 onClick={() =>
                   (window.location.href =
-                    "http://localhost:8000/auth/apple/login")
+                    `${API_BASE}/auth/apple/login`)
                 }
                 type="button"
                 className="h-12 flex items-center justify-center gap-2.5 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-2xl text-sm font-semibold text-gray-700 transition-all"
@@ -464,7 +469,7 @@ export default function LoginPage() {
               <button
                 onClick={() =>
                   (window.location.href =
-                    "http://localhost:8000/auth/microsoft/login")
+                    `${API_BASE}/auth/microsoft/login`)
                 }
                 type="button"
                 className="h-12 flex items-center justify-center gap-2.5 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-2xl text-sm font-semibold text-gray-700 transition-all"
