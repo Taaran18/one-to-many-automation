@@ -215,6 +215,62 @@ def start_campaign(
     return {"success": True, "message": "Campaign started"}
 
 
+@router.post("/{campaign_id}/rerun")
+def rerun_campaign(
+    campaign_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    c = (
+        db.query(models.Campaign)
+        .filter(
+            models.Campaign.id == campaign_id,
+            models.Campaign.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not c:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if c.status == "running":
+        raise HTTPException(status_code=400, detail="Campaign is already running")
+    # Clear old logs and reset status
+    db.query(models.MessageLog).filter(models.MessageLog.campaign_id == c.id).delete()
+    c.status = "draft"
+    db.commit()
+    background_tasks.add_task(_run_campaign, campaign_id, current_user.id)
+    return {"success": True, "message": "Campaign rerun started"}
+
+
+@router.post("/{campaign_id}/duplicate", response_model=schemas.CampaignResponse)
+def duplicate_campaign(
+    campaign_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    c = (
+        db.query(models.Campaign)
+        .filter(
+            models.Campaign.id == campaign_id,
+            models.Campaign.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not c:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    new_c = models.Campaign(
+        user_id=current_user.id,
+        name=f"{c.name} (Copy)",
+        template_id=c.template_id,
+        lead_group_id=c.lead_group_id,
+        status="draft",
+    )
+    db.add(new_c)
+    db.commit()
+    db.refresh(new_c)
+    return _build_response(new_c, db)
+
+
 @router.get("/{campaign_id}/logs", response_model=List[schemas.MessageLogResponse])
 def get_logs(
     campaign_id: int,

@@ -98,6 +98,10 @@ def delete_template(
     )
     if not t:
         raise HTTPException(status_code=404, detail="Template not found")
+    # Nullify template_id on campaigns before deleting to avoid FK violation
+    for campaign in t.campaigns:
+        campaign.template_id = None
+    db.flush()
     db.delete(t)
     db.commit()
     return {"success": True}

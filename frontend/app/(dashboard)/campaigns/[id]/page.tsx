@@ -23,6 +23,7 @@ export default function CampaignDetailPage() {
   const [logs, setLogs] = useState<MessageLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -44,13 +45,12 @@ export default function CampaignDetailPage() {
   }, [id]);
 
   const handleStart = async () => {
-    if (!confirm("Start campaign now?")) return;
     setStarting(true);
     try {
       await apiPost(`/campaigns/${id}/start`);
       load();
     } catch (err: any) {
-      alert(err.message);
+      setStartError(err.message);
     } finally {
       setStarting(false);
     }
@@ -167,6 +167,9 @@ export default function CampaignDetailPage() {
             </button>
           )}
         </div>
+        {startError && (
+          <p className="mt-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{startError}</p>
+        )}
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
@@ -240,7 +243,7 @@ export default function CampaignDetailPage() {
                   <td className="px-5 py-4">
                     <Badge label={log.status} />
                   </td>
-                  <td className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500">
+                  <td suppressHydrationWarning className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500">
                     {fmt(log.sent_at)}
                   </td>
                   <td className="px-5 py-4 text-xs text-red-500 dark:text-red-400">

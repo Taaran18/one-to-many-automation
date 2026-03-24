@@ -76,6 +76,11 @@ class LeadGroupCreate(BaseModel):
     description: Optional[str] = None
 
 
+class LeadGroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
 class LeadGroupResponse(BaseModel):
     id: int
     user_id: int
@@ -208,3 +213,9 @@ class WAStatusResponse(BaseModel):
 class WAQRResponse(BaseModel):
     qr: Optional[str] = None
     status: str
+
+
+class WAInfoResponse(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    connected_at: Optional[str] = None

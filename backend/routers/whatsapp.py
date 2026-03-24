@@ -105,6 +105,29 @@ def get_qr(
     return schemas.WAQRResponse(status="qr_pending")
 
 
+@router.get("/info", response_model=schemas.WAInfoResponse)
+def get_info(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    try:
+        resp = httpx.get(
+            f"{BRIDGE_URL}/session/info",
+            params={"user_id": current_user.id},
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return schemas.WAInfoResponse(
+                name=data.get("name"),
+                phone=data.get("phone"),
+                connected_at=data.get("connected_at"),
+            )
+    except Exception:
+        pass
+    return schemas.WAInfoResponse()
+
+
 @router.post("/disconnect")
 def disconnect(
     db: Session = Depends(get_db),

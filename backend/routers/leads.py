@@ -112,6 +112,9 @@ def delete_lead(
     )
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    # Clear group memberships before deleting to avoid FK violation
+    lead.groups.clear()
+    db.flush()
     db.delete(lead)
     db.commit()
     return {"success": True}
@@ -225,6 +228,75 @@ def add_members(
             group.members.append(lead)
     db.commit()
     return {"success": True, "added": len(leads)}
+
+
+@router.get("/{lead_id}/groups")
+def get_lead_groups(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return {"group_ids": [g.id for g in lead.groups]}
+
+
+@router.put("/groups/{group_id}", response_model=schemas.LeadGroupResponse)
+def update_group(
+    group_id: int,
+    update: schemas.LeadGroupUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    group = (
+        db.query(models.LeadGroup)
+        .filter(
+            models.LeadGroup.id == group_id,
+            models.LeadGroup.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    for field, value in update.model_dump(exclude_unset=True).items():
+        setattr(group, field, value)
+    db.commit()
+    db.refresh(group)
+    return schemas.LeadGroupResponse(
+        id=group.id,
+        user_id=group.user_id,
+        name=group.name,
+        description=group.description,
+        created_at=group.created_at,
+        member_count=len(group.members),
+    )
+
+
+@router.delete("/groups/{group_id}/members")
+def remove_members(
+    group_id: int,
+    body: schemas.AddMembersRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    group = (
+        db.query(models.LeadGroup)
+        .filter(
+            models.LeadGroup.id == group_id,
+            models.LeadGroup.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    group.members = [m for m in group.members if m.id not in body.lead_ids]
+    db.commit()
+    return {"success": True}
 
 
 @router.delete("/groups/{group_id}")
