@@ -25,7 +25,7 @@ services:
     name: onetomany-bridge
     runtime: node
     rootDir: whatsapp-bridge
-    buildCommand: npm install
+    buildCommand: npm install && npx puppeteer browsers install chrome
     startCommand: node index.js
     envVars:
       - key: PORT

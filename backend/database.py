@@ -7,7 +7,12 @@ load_dotenv()
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "")
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Supabase requires SSL for remote connections
+connect_args = {}
+if "supabase.co" in SQLALCHEMY_DATABASE_URL:
+    connect_args = {"sslmode": "require"}
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
