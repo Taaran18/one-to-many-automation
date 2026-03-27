@@ -2,15 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import httpx
+import json
+import time
 
 import models
 import schemas
+from auth import cipher_suite
 from database import get_db
 from dependencies import get_current_user
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
 BRIDGE_URL = "http://localhost:3001"
+META_API_BASE = "https://graph.facebook.com/v19.0"
 
 
 def _resolve_template(body: str, lead: models.Lead) -> str:
@@ -34,28 +38,89 @@ def _run_campaign(campaign_id: int, user_id: int):
             return
 
         campaign.status = "running"
+        campaign.run_count = (campaign.run_count or 0) + 1
+        current_run = campaign.run_count
         db.commit()
 
-        leads = campaign.lead_group.members if campaign.lead_group else []
+        # Collect unique leads from all selected groups
+        group_ids = []
+        if campaign.lead_group_ids:
+            try:
+                group_ids = json.loads(campaign.lead_group_ids)
+            except Exception:
+                pass
+        if not group_ids and campaign.lead_group_id:
+            group_ids = [campaign.lead_group_id]
+
+        seen_lead_ids = set()
+        leads = []
+        for gid in group_ids:
+            grp = db.query(models.LeadGroup).filter(models.LeadGroup.id == gid).first()
+            if grp:
+                for lead in grp.members:
+                    if lead.id not in seen_lead_ids:
+                        seen_lead_ids.add(lead.id)
+                        leads.append(lead)
+
         template_body = campaign.template.body if campaign.template else ""
 
-        for lead in leads:
+        # Determine connection type for this user
+        wa_session = (
+            db.query(models.WhatsAppSession)
+            .filter(models.WhatsAppSession.user_id == user_id)
+            .first()
+        )
+        use_meta = (
+            wa_session
+            and wa_session.wa_type == "meta"
+            and wa_session.meta_phone_id
+            and wa_session.meta_access_token
+        )
+        meta_phone_id = None
+        meta_token = None
+        if use_meta:
+            meta_phone_id = wa_session.meta_phone_id
+            meta_token = cipher_suite.decrypt(
+                wa_session.meta_access_token.encode("utf-8")
+            ).decode("utf-8")
+
+        for i, lead in enumerate(leads):
             message = _resolve_template(template_body, lead)
             phone = lead.phone_no.lstrip("+").replace(" ", "")
             status = "failed"
             error = None
             try:
-                resp = httpx.post(
-                    f"{BRIDGE_URL}/message/send",
-                    json={
-                        "user_id": user_id,
-                        "phone_no": f"{phone}@c.us",
-                        "message": message,
-                    },
-                    timeout=30,
-                )
-                if resp.status_code == 200 and resp.json().get("success"):
-                    status = "sent"
+                if use_meta:
+                    resp = httpx.post(
+                        f"{META_API_BASE}/{meta_phone_id}/messages",
+                        headers={
+                            "Authorization": f"Bearer {meta_token}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "messaging_product": "whatsapp",
+                            "to": phone,
+                            "type": "text",
+                            "text": {"body": message},
+                        },
+                        timeout=30,
+                    )
+                    if resp.status_code == 200 and resp.json().get("messages"):
+                        status = "sent"
+                    else:
+                        error = resp.json().get("error", {}).get("message", "Meta API error")
+                else:
+                    resp = httpx.post(
+                        f"{BRIDGE_URL}/message/send",
+                        json={
+                            "user_id": user_id,
+                            "phone_no": f"{phone}@c.us",
+                            "message": message,
+                        },
+                        timeout=30,
+                    )
+                    if resp.status_code == 200 and resp.json().get("success"):
+                        status = "sent"
             except Exception as e:
                 error = str(e)
 
@@ -64,9 +129,14 @@ def _run_campaign(campaign_id: int, user_id: int):
                 lead_id=lead.id,
                 status=status,
                 error_message=error,
+                run_number=current_run,
             )
             db.add(log)
             db.commit()
+
+            # 2-second delay between messages to avoid spam (skip after last)
+            if i < len(leads) - 1:
+                time.sleep(2)
 
         campaign.status = "completed"
         db.commit()
@@ -92,12 +162,24 @@ def create_campaign(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    # Use first group as primary lead_group_id for display; store all in lead_group_ids
+    primary_group_id = campaign.lead_group_id
+    all_group_ids = campaign.lead_group_ids or (
+        [campaign.lead_group_id] if campaign.lead_group_id else []
+    )
+    if not primary_group_id and all_group_ids:
+        primary_group_id = all_group_ids[0]
+
     db_campaign = models.Campaign(
         user_id=current_user.id,
         name=campaign.name,
         template_id=campaign.template_id,
-        lead_group_id=campaign.lead_group_id,
+        lead_group_id=primary_group_id,
+        lead_group_ids=json.dumps(all_group_ids) if all_group_ids else None,
         scheduled_at=campaign.scheduled_at,
+        recurrence=campaign.recurrence or "one_time",
+        recurrence_config=campaign.recurrence_config,
+        tags=campaign.tags,
         status="draft" if not campaign.scheduled_at else "scheduled",
     )
     db.add(db_campaign)
@@ -155,11 +237,14 @@ def update_campaign(
     )
     if not c:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    if c.status not in ("draft", "scheduled"):
+    update_data = update.model_dump(exclude_unset=True)
+    # Allow tags update regardless of status; other fields require draft/scheduled
+    non_tag_fields = {k: v for k, v in update_data.items() if k != "tags"}
+    if non_tag_fields and c.status not in ("draft", "scheduled"):
         raise HTTPException(
             status_code=400, detail="Cannot edit a running or completed campaign"
         )
-    for field, value in update.model_dump(exclude_unset=True).items():
+    for field, value in update_data.items():
         setattr(c, field, value)
     if c.scheduled_at and c.status == "draft":
         c.status = "scheduled"
@@ -234,8 +319,6 @@ def rerun_campaign(
         raise HTTPException(status_code=404, detail="Campaign not found")
     if c.status == "running":
         raise HTTPException(status_code=400, detail="Campaign is already running")
-    # Clear old logs and reset status
-    db.query(models.MessageLog).filter(models.MessageLog.campaign_id == c.id).delete()
     c.status = "draft"
     db.commit()
     background_tasks.add_task(_run_campaign, campaign_id, current_user.id)
@@ -275,7 +358,7 @@ def duplicate_campaign(
 def get_logs(
     campaign_id: int,
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(200, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -311,6 +394,7 @@ def get_logs(
                 error_message=log.error_message,
                 lead_name=log.lead.name if log.lead else None,
                 lead_phone=log.lead.phone_no if log.lead else None,
+                run_number=log.run_number or 1,
             )
         )
     return result
@@ -337,17 +421,37 @@ def _build_response(c: models.Campaign, db: Session) -> schemas.CampaignResponse
         .scalar()
         or 0
     )
+    # Deserialize multi-group IDs
+    group_ids = []
+    if c.lead_group_ids:
+        try:
+            group_ids = json.loads(c.lead_group_ids)
+        except Exception:
+            pass
+
+    # Fetch names for all selected groups
+    group_names = []
+    for gid in group_ids:
+        grp = db.query(models.LeadGroup).filter(models.LeadGroup.id == gid).first()
+        if grp:
+            group_names.append(grp.name)
+
     return schemas.CampaignResponse(
         id=c.id,
         user_id=c.user_id,
         name=c.name,
         template_id=c.template_id,
         lead_group_id=c.lead_group_id,
+        lead_group_ids=group_ids or None,
         status=c.status,
         scheduled_at=c.scheduled_at,
         created_at=c.created_at,
+        recurrence=c.recurrence or "one_time",
+        recurrence_config=c.recurrence_config,
+        tags=c.tags,
         template_name=c.template.name if c.template else None,
         lead_group_name=c.lead_group.name if c.lead_group else None,
+        lead_group_names=group_names or None,
         messages_sent=sent,
         messages_failed=failed,
     )

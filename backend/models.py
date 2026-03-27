@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, ForeignKey, Table, Boolean, Index, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
@@ -30,12 +30,22 @@ class WASessionStatus(str, enum.Enum):
     qr_pending = "qr_pending"
 
 
+class WAConnectionType(str, enum.Enum):
+    qr = "qr"
+    meta = "meta"
+
+
+class TemplateConnectionType(str, enum.Enum):
+    qr = "qr"
+    meta = "meta"
+
+
 # Association table for lead group members
 lead_group_members = Table(
     "lead_group_members",
     Base.metadata,
-    Column("lead_group_id", Integer, ForeignKey("lead_groups.id"), primary_key=True),
-    Column("lead_id", Integer, ForeignKey("leads.id"), primary_key=True),
+    Column("lead_group_id", Integer, ForeignKey("lead_groups.id", ondelete="CASCADE"), primary_key=True),
+    Column("lead_id", Integer, ForeignKey("leads.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
@@ -46,6 +56,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=True)
     phone_no = Column(String(20), unique=True, index=True, nullable=True)
     password = Column(String(512), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     leads = relationship("Lead", back_populates="owner", cascade="all, delete-orphan")
     lead_groups = relationship(
@@ -67,6 +78,10 @@ class User(Base):
 
 class Lead(Base):
     __tablename__ = "leads"
+    __table_args__ = (
+        UniqueConstraint("user_id", "phone_no", name="uq_lead_user_phone"),
+        Index("ix_leads_user_status", "user_id", "status"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -74,7 +89,7 @@ class Lead(Base):
     phone_no = Column(String(30), nullable=False)
     email = Column(String(255), nullable=True)
     tags = Column(Text, nullable=True)  # comma-separated tags
-    status = Column(Enum(LeadStatus), default=LeadStatus.prospect, nullable=False)
+    status = Column(Enum(LeadStatus, native_enum=False), default=LeadStatus.prospect, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -82,9 +97,7 @@ class Lead(Base):
     groups = relationship(
         "LeadGroup", secondary=lead_group_members, back_populates="members"
     )
-    message_logs = relationship(
-        "MessageLog", back_populates="lead", cascade="all, delete-orphan"
-    )
+    message_logs = relationship("MessageLog", back_populates="lead")
 
 
 class LeadGroup(Base):
@@ -105,11 +118,24 @@ class LeadGroup(Base):
 
 class Template(Base):
     __tablename__ = "templates"
+    __table_args__ = (
+        UniqueConstraint("user_id", "meta_template_name", name="uq_template_user_meta_name"),
+        Index("ix_templates_user_type", "user_id", "connection_type"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(255), nullable=False)
     body = Column(Text, nullable=False)
+    # QR-only: comma-separated tags
+    tags = Column(Text, nullable=True)
+    # Meta-only fields
+    connection_type = Column(Enum(TemplateConnectionType, native_enum=False), nullable=False, default=TemplateConnectionType.qr)
+    meta_template_name = Column(String(255), nullable=True)  # snake_case name on Meta
+    meta_category = Column(String(50), nullable=True)        # MARKETING | UTILITY | AUTHENTICATION
+    meta_status = Column(String(50), nullable=True)          # APPROVED | PENDING | REJECTED | PAUSED
+    meta_language = Column(String(20), nullable=True)        # e.g. en_US
+    meta_header_image_url = Column(Text, nullable=True)      # image URL for IMAGE header type
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -119,14 +145,22 @@ class Template(Base):
 
 class Campaign(Base):
     __tablename__ = "campaigns"
+    __table_args__ = (
+        Index("ix_campaigns_user_status", "user_id", "status"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(255), nullable=False)
     template_id = Column(Integer, ForeignKey("templates.id"), nullable=True)
     lead_group_id = Column(Integer, ForeignKey("lead_groups.id"), nullable=True)
-    status = Column(Enum(CampaignStatus), default=CampaignStatus.draft, nullable=False)
+    status = Column(Enum(CampaignStatus, native_enum=False), default=CampaignStatus.draft, nullable=False)
     scheduled_at = Column(DateTime(timezone=True), nullable=True)
+    recurrence = Column(String(20), nullable=True, default="one_time")
+    lead_group_ids = Column(Text, nullable=True)      # JSON array of group IDs
+    tags = Column(Text, nullable=True)                # comma-separated tags
+    recurrence_config = Column(Text, nullable=True)   # JSON: {days:[...]} or {day:N}
+    run_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -140,13 +174,17 @@ class Campaign(Base):
 
 class MessageLog(Base):
     __tablename__ = "message_logs"
+    __table_args__ = (
+        Index("ix_message_logs_campaign_status", "campaign_id", "status"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False)
-    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False)
-    status = Column(Enum(MessageStatus), default=MessageStatus.sent, nullable=False)
+    lead_id = Column(Integer, ForeignKey("leads.id", ondelete="SET NULL"), nullable=True)
+    status = Column(Enum(MessageStatus, native_enum=False), default=MessageStatus.sent, nullable=False)
     sent_at = Column(DateTime(timezone=True), server_default=func.now())
     error_message = Column(Text, nullable=True)
+    run_number = Column(Integer, nullable=False, default=1)
 
     campaign = relationship("Campaign", back_populates="message_logs")
     lead = relationship("Lead", back_populates="message_logs")
@@ -158,8 +196,14 @@ class WhatsAppSession(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
     status = Column(
-        Enum(WASessionStatus), default=WASessionStatus.disconnected, nullable=False
+        Enum(WASessionStatus, native_enum=False), default=WASessionStatus.disconnected, nullable=False
     )
     last_seen = Column(DateTime(timezone=True), nullable=True)
+    wa_type = Column(
+        Enum(WAConnectionType, native_enum=False), default=WAConnectionType.qr, nullable=False
+    )
+    meta_phone_id = Column(String(100), nullable=True)
+    meta_access_token = Column(Text, nullable=True)  # Fernet-encrypted
+    meta_waba_id = Column(String(100), nullable=True)
 
     owner = relationship("User", back_populates="whatsapp_session")

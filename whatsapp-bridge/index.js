@@ -29,7 +29,7 @@ async function createSession(userId) {
     const old = sessions.get(id);
     try {
       await old.client.destroy();
-    } catch (_) {}
+    } catch (_) { }
     sessions.delete(id);
   }
 
@@ -82,7 +82,7 @@ async function createSession(userId) {
         phone: "+" + rawPhone,
         connected_at: new Date().toISOString(),
       };
-    } catch (_) {}
+    } catch (_) { }
     console.log(`[user ${id}] WhatsApp connected — ${session.info?.phone}`);
   });
 
@@ -145,7 +145,7 @@ app.post("/session/destroy", async (req, res) => {
     try {
       await session.client.logout();
       await session.client.destroy();
-    } catch (_) {}
+    } catch (_) { }
   }
   sessions.delete(String(user_id));
   res.json({ success: true });

@@ -42,7 +42,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10 max-w-[1400px]">
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 w-full">
           {children}
         </main>
       </div>

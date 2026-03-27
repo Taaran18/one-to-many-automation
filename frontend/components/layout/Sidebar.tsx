@@ -1,9 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import WhatsAppStatusButton from "./WhatsAppStatusButton";
+import { apiGet } from "@/lib/api";
+import type { WAStatus } from "@/lib/types";
 
 const NAV = [
   {
@@ -109,6 +112,23 @@ export default function Sidebar({
   const { email, initial } =
     typeof window !== "undefined" ? getUserInfo() : { email: "", initial: "U" };
 
+  const [waForceOpen, setWaForceOpen] = useState(false);
+
+  useEffect(() => {
+    // Only show once per browser session
+    if (sessionStorage.getItem("wa_onboard_shown")) return;
+    (async () => {
+      try {
+        const s = await apiGet<WAStatus>("/whatsapp/status");
+        if (s.status === "disconnected") {
+          sessionStorage.setItem("wa_onboard_shown", "1");
+          setWaForceOpen(true);
+          setTimeout(() => setWaForceOpen(false), 200);
+        }
+      } catch {}
+    })();
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     document.cookie = "access_token=; path=/; max-age=0";
@@ -194,7 +214,7 @@ export default function Sidebar({
 
       {/* WhatsApp status */}
       <div className="px-3 pt-3">
-        <WhatsAppStatusButton compact />
+        <WhatsAppStatusButton compact onOpen={onMobileClose} forceOpen={waForceOpen} />
       </div>
 
       {/* User row */}

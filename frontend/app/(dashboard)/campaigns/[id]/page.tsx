@@ -168,7 +168,9 @@ export default function CampaignDetailPage() {
           )}
         </div>
         {startError && (
-          <p className="mt-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{startError}</p>
+          <p className="mt-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
+            {startError}
+          </p>
         )}
 
         {/* Stats row */}
@@ -218,7 +220,7 @@ export default function CampaignDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800/60">
               <tr>
-                {["Lead", "Phone", "Status", "Sent At", "Error"].map((h) => (
+                {["Run", "Lead", "Phone", "Status", "Sent At", "Error"].map((h) => (
                   <th
                     key={h}
                     className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
@@ -229,11 +231,16 @@ export default function CampaignDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {logs.map((log) => (
+              {[...logs].sort((a, b) => (b.run_number ?? 1) - (a.run_number ?? 1) || (b.id - a.id)).map((log) => (
                 <tr
                   key={log.id}
                   className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors"
                 >
+                  <td className="px-5 py-4">
+                    <span className="text-xs font-semibold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
+                      #{log.run_number ?? 1}
+                    </span>
+                  </td>
                   <td className="px-5 py-4 font-semibold text-gray-900 dark:text-white">
                     {log.lead_name || `#${log.lead_id}`}
                   </td>
@@ -243,7 +250,10 @@ export default function CampaignDetailPage() {
                   <td className="px-5 py-4">
                     <Badge label={log.status} />
                   </td>
-                  <td suppressHydrationWarning className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500">
+                  <td
+                    suppressHydrationWarning
+                    className="px-5 py-4 text-xs text-gray-400 dark:text-gray-500"
+                  >
                     {fmt(log.sent_at)}
                   </td>
                   <td className="px-5 py-4 text-xs text-red-500 dark:text-red-400">

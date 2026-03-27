@@ -65,6 +65,22 @@ export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
   return res.json();
 }
 
+export async function apiUpload<T>(path: string, file: File): Promise<T> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+    throw new Error(err.detail || "Upload failed");
+  }
+  return res.json();
+}
+
 export async function apiDelete(path: string): Promise<void> {
   const res = await apiFetch(path, { method: "DELETE" });
   if (!res.ok) {

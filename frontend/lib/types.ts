@@ -23,6 +23,13 @@ export interface Template {
   user_id: number;
   name: string;
   body: string;
+  tags?: string;
+  connection_type?: "qr" | "meta";
+  meta_template_name?: string;
+  meta_category?: string;
+  meta_status?: string;
+  meta_language?: string;
+  meta_header_image_url?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -33,11 +40,16 @@ export interface Campaign {
   name: string;
   template_id?: number;
   lead_group_id?: number;
+  lead_group_ids?: number[];
   status: "draft" | "scheduled" | "running" | "completed" | "failed";
   scheduled_at?: string;
   created_at?: string;
+  recurrence?: string;
+  recurrence_config?: string;
+  tags?: string;
   template_name?: string;
   lead_group_name?: string;
+  lead_group_names?: string[];
   messages_sent?: number;
   messages_failed?: number;
 }
@@ -51,6 +63,7 @@ export interface MessageLog {
   error_message?: string;
   lead_name?: string;
   lead_phone?: string;
+  run_number?: number;
 }
 
 export interface DashboardStats {
@@ -81,4 +94,5 @@ export interface ScheduleItem {
 export interface WAStatus {
   status: "connected" | "disconnected" | "qr_pending";
   user_email?: string;
+  wa_type?: "qr" | "meta";
 }

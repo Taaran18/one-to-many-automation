@@ -103,11 +103,33 @@ class AddMembersRequest(BaseModel):
 class TemplateCreate(BaseModel):
     name: str
     body: str
+    tags: Optional[str] = None
 
 
 class TemplateUpdate(BaseModel):
     name: Optional[str] = None
     body: Optional[str] = None
+    tags: Optional[str] = None
+
+
+class TemplateButtonItem(BaseModel):
+    type: str           # QUICK_REPLY | URL | PHONE_NUMBER
+    text: str
+    url: Optional[str] = None
+    phone_number: Optional[str] = None
+
+
+class TemplateMetaCreate(BaseModel):
+    name: str                               # display name (stored locally)
+    meta_template_name: str                 # snake_case, sent to Meta
+    category: str                           # MARKETING | UTILITY | AUTHENTICATION
+    language: str = "en"                    # default en, not shown in UI
+    body: str                               # body text with {{1}}, {{2}} placeholders
+    header: Optional[str] = None            # optional header text
+    header_image_url: Optional[str] = None  # optional header image URL
+    footer: Optional[str] = None            # optional footer text
+    buttons: Optional[List[TemplateButtonItem]] = None
+    variable_samples: Optional[List[str]] = None  # sample values for {{1}}, {{2}}, ...
 
 
 class TemplateResponse(BaseModel):
@@ -115,6 +137,13 @@ class TemplateResponse(BaseModel):
     user_id: int
     name: str
     body: str
+    tags: Optional[str] = None
+    connection_type: Optional[str] = "qr"
+    meta_template_name: Optional[str] = None
+    meta_category: Optional[str] = None
+    meta_status: Optional[str] = None
+    meta_language: Optional[str] = None
+    meta_header_image_url: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -129,14 +158,22 @@ class CampaignCreate(BaseModel):
     name: str
     template_id: Optional[int] = None
     lead_group_id: Optional[int] = None
+    lead_group_ids: Optional[List[int]] = None
     scheduled_at: Optional[datetime] = None
+    recurrence: Optional[str] = "one_time"
+    recurrence_config: Optional[str] = None
+    tags: Optional[str] = None
 
 
 class CampaignUpdate(BaseModel):
     name: Optional[str] = None
     template_id: Optional[int] = None
     lead_group_id: Optional[int] = None
+    lead_group_ids: Optional[List[int]] = None
     scheduled_at: Optional[datetime] = None
+    recurrence: Optional[str] = None
+    recurrence_config: Optional[str] = None
+    tags: Optional[str] = None
 
 
 class CampaignResponse(BaseModel):
@@ -145,11 +182,16 @@ class CampaignResponse(BaseModel):
     name: str
     template_id: Optional[int] = None
     lead_group_id: Optional[int] = None
+    lead_group_ids: Optional[List[int]] = None
     status: str
     scheduled_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    recurrence: Optional[str] = "one_time"
+    recurrence_config: Optional[str] = None
+    tags: Optional[str] = None
     template_name: Optional[str] = None
     lead_group_name: Optional[str] = None
+    lead_group_names: Optional[List[str]] = None
     messages_sent: Optional[int] = 0
     messages_failed: Optional[int] = 0
 
@@ -169,6 +211,7 @@ class MessageLogResponse(BaseModel):
     error_message: Optional[str] = None
     lead_name: Optional[str] = None
     lead_phone: Optional[str] = None
+    run_number: Optional[int] = 1
 
     class Config:
         from_attributes = True
@@ -208,6 +251,7 @@ class ScheduleItem(BaseModel):
 class WAStatusResponse(BaseModel):
     status: str
     user_email: Optional[str] = None
+    wa_type: Optional[str] = "qr"
 
 
 class WAQRResponse(BaseModel):
@@ -219,3 +263,10 @@ class WAInfoResponse(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     connected_at: Optional[str] = None
+    wa_type: Optional[str] = "qr"
+
+
+class WAMetaConnectRequest(BaseModel):
+    phone_id: str
+    access_token: str
+    waba_id: str

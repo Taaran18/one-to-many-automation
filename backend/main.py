@@ -1,12 +1,16 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
+import os, uuid, shutil
 
 import models, schemas, auth
 from database import engine, get_db
 from routers import leads, templates, campaigns, dashboard, whatsapp
+
+os.makedirs("uploads", exist_ok=True)
 
 try:
     models.Base.metadata.create_all(bind=engine)
@@ -23,6 +27,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 # ─── Register Routers ─────────────────────────────────────────────────────────
 app.include_router(leads.router)
 app.include_router(templates.router)
@@ -37,6 +43,17 @@ app.include_router(whatsapp.router)
 @app.get("/")
 async def root():
     return {"status": "success", "message": "OneToMany Automation API"}
+
+
+@app.post("/upload/image")
+async def upload_image(file: UploadFile = File(...)):
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower()
+    if ext not in ("jpg", "jpeg", "png", "webp", "gif"):
+        raise HTTPException(status_code=400, detail="Only jpg, png, webp, gif allowed.")
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    with open(f"uploads/{filename}", "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return {"url": f"http://localhost:8000/uploads/{filename}"}
 
 
 @app.post("/register", response_model=schemas.UserResponse)
