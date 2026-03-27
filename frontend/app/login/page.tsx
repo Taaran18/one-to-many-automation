@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "${API_BASE}";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const COUNTRY_CODES = [
   { code: "+91",  flag: "🇮🇳", name: "India" },
@@ -160,7 +160,7 @@ export default function LoginPage() {
     try {
       if (isLogin) {
         const body = new URLSearchParams({ username, password });
-        const res = await fetch("${API_BASE}/login", {
+        const res = await fetch(`${API_BASE}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body,
@@ -172,7 +172,7 @@ export default function LoginPage() {
         router.push("/dashboard");
       } else {
         const payload = loginType === "phone" ? { phone_no: username, password } : { email: username, password };
-        const res = await fetch("${API_BASE}/register", {
+        const res = await fetch(`${API_BASE}/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -344,7 +344,7 @@ export default function LoginPage() {
 
           {/* OAuth */}
           <div className="space-y-3">
-            <button onClick={() => (window.location.href = "${API_BASE}/auth/google/login")} type="button" className="w-full h-12 flex items-center justify-center gap-3 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-2xl text-sm font-semibold text-gray-700 transition-all">
+            <button onClick={() => (window.location.href = `${API_BASE}/auth/google/login`)} type="button" className="w-full h-12 flex items-center justify-center gap-3 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-2xl text-sm font-semibold text-gray-700 transition-all">
               <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -354,11 +354,11 @@ export default function LoginPage() {
               Continue with Google
             </button>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => (window.location.href = "${API_BASE}/auth/apple/login")} type="button" className="h-12 flex items-center justify-center gap-2.5 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-2xl text-sm font-semibold text-gray-700 transition-all">
+              <button onClick={() => (window.location.href = `${API_BASE}/auth/apple/login`)} type="button" className="h-12 flex items-center justify-center gap-2.5 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-2xl text-sm font-semibold text-gray-700 transition-all">
                 <svg className="w-5 h-5 fill-current" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 24 184.5 15.6 235.9c-8.1 49.3-5 110.8 17.5 149.2 23.3 39.8 48.9 74.3 84.7 75.6 38.6 1.4 52.8-21.6 96.1-21.6 43.1 0 54.4 21.6 93.8 21.6 36.9 0 59.9-38.3 83.3-76.5 15.7-25.7 22.3-55 22.9-56.7-1.5-1.1-39-16.1-39-58.8zM245.8 89.2c16.3-19.4 30.6-47.5 27.6-76.4-25.7 1.1-55.8 17.5-73.3 38.3-15.3 18.1-31.1 47.2-27.2 74.9 29.2 1.9 56.6-17.5 72.9-36.8z" /></svg>
                 Apple
               </button>
-              <button onClick={() => (window.location.href = "${API_BASE}/auth/microsoft/login")} type="button" className="h-12 flex items-center justify-center gap-2.5 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-2xl text-sm font-semibold text-gray-700 transition-all">
+              <button onClick={() => (window.location.href = `${API_BASE}/auth/microsoft/login`)} type="button" className="h-12 flex items-center justify-center gap-2.5 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-2xl text-sm font-semibold text-gray-700 transition-all">
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 21 21"><path fill="#f35325" d="M0 0h10v10H0z" /><path fill="#81bc06" d="M11 0h10v10H11z" /><path fill="#05a6f0" d="M0 11h10v10H0z" /><path fill="#ffba08" d="M11 11h10v10H11z" /></svg>
                 Microsoft
               </button>
