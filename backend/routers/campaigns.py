@@ -11,9 +11,11 @@ from auth import cipher_suite
 from database import get_db
 from dependencies import get_current_user
 
+import os
+
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
-BRIDGE_URL = "http://localhost:3001"
+BRIDGE_URL = os.getenv("BRIDGE_URL", "http://localhost:3001")
 META_API_BASE = "https://graph.facebook.com/v19.0"
 
 

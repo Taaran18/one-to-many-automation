@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import httpx
+import os
 
 import models
 import schemas
@@ -11,7 +12,7 @@ from dependencies import get_current_user
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
-BRIDGE_URL = "http://localhost:3001"
+BRIDGE_URL = os.getenv("BRIDGE_URL", "http://localhost:3001")
 META_API_BASE = "https://graph.facebook.com/v19.0"
 
 

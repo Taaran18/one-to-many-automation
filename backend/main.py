@@ -19,9 +19,12 @@ except Exception as e:
 
 app = FastAPI(title="OneToMany Automation API")
 
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,7 +56,8 @@ async def upload_image(file: UploadFile = File(...)):
     filename = f"{uuid.uuid4().hex}.{ext}"
     with open(f"uploads/{filename}", "wb") as f:
         shutil.copyfileobj(file.file, f)
-    return {"url": f"http://localhost:8000/uploads/{filename}"}
+    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    return {"url": f"{backend_url}/uploads/{filename}"}
 
 
 @app.post("/register", response_model=schemas.UserResponse)
