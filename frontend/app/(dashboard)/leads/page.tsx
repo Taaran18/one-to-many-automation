@@ -230,7 +230,8 @@ export default function LeadsPage() {
     try {
       if (inGroup) {
         const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-        await fetch(`http://localhost:8000/leads/groups/${groupId}/members`, {
+        const _apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        await fetch(`${_apiBase}/leads/groups/${groupId}/members`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ lead_ids: [manageGroupsLead.id] }),
