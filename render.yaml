@@ -30,3 +30,5 @@ services:
     envVars:
       - key: PORT
         value: "3001"
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/project/src/.puppeteer-cache
