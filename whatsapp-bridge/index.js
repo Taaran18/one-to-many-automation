@@ -3,7 +3,24 @@ const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
 const path = require("path");
 const fs = require("fs");
-const puppeteer = require("puppeteer");
+const os = require("os");
+
+function findChromePath() {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  const cacheDir = path.join(os.homedir(), ".cache", "puppeteer", "chrome");
+  try {
+    if (fs.existsSync(cacheDir)) {
+      const versions = fs.readdirSync(cacheDir).filter((d) => d.startsWith("linux-")).sort().reverse();
+      for (const v of versions) {
+        const bin = path.join(cacheDir, v, "chrome-linux64", "chrome");
+        if (fs.existsSync(bin)) return bin;
+      }
+    }
+  } catch (_) {}
+  return undefined;
+}
 
 const app = express();
 app.use(express.json());
@@ -43,7 +60,7 @@ async function createSession(userId) {
       dataPath: SESSIONS_DIR,
     }),
     puppeteer: {
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+      executablePath: findChromePath(),
       headless: true,
       args: [
         "--no-sandbox",
