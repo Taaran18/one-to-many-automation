@@ -85,7 +85,8 @@ async function createSession(userId) {
       "--disable-default-apps",
       "--no-first-run",
       "--no-zygote",
-      "--single-process",
+      "--disable-features=VizDisplayCompositor",
+      "--disable-ipc-flooding-protection",
     ],
     timeout: 60000,
   };
