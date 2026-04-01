@@ -39,6 +39,7 @@ export default function WhatsAppStatusButton({
   const [qr, setQr] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [qrError, setQrError] = useState(false);
   const [info, setInfo] = useState<WAInfo | null>(null);
   const [connectedAt, setConnectedAt] = useState("");
   const [method, setMethod] = useState<ConnectionMethod | null>(null);
@@ -97,6 +98,7 @@ export default function WhatsAppStatusButton({
       if (status === "disconnected") {
         setMethod(null);
         setQr(null);
+        setQrError(false);
       }
     }
   }, [open]);
@@ -118,6 +120,7 @@ export default function WhatsAppStatusButton({
   // Poll QR while modal open and pending
   useEffect(() => {
     if (!open || status !== "qr_pending") return;
+    setQrError(false);
     const iv = setInterval(async () => {
       try {
         const d = await apiGet<{ qr?: string; status: string }>("/whatsapp/qr");
@@ -126,6 +129,10 @@ export default function WhatsAppStatusButton({
           setQr(null);
           clearInterval(iv);
           fetchInfo();
+        } else if (d.status === "disconnected") {
+          setStatus("disconnected");
+          setQrError(true);
+          clearInterval(iv);
         } else if (d.qr) {
           setQr(d.qr);
         }
@@ -366,8 +373,23 @@ export default function WhatsAppStatusButton({
                         />
                       ) : (
                         <div className="w-56 h-56 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col items-center justify-center gap-3">
-                          <Spinner />
-                          <p className="text-xs text-gray-400">Generating QR…</p>
+                          {qrError ? (
+                            <>
+                              <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                              </svg>
+                              <p className="text-xs text-red-400 text-center px-4">Bridge failed to start Chrome.<br/>Try again in a moment.</p>
+                              <button
+                                onClick={() => { setQrError(false); autoQrStarted.current = false; handleStartQR(); }}
+                                className="text-xs font-semibold text-indigo-500 hover:text-indigo-700 underline"
+                              >Retry</button>
+                            </>
+                          ) : (
+                            <>
+                              <Spinner />
+                              <p className="text-xs text-gray-400">Generating QR…</p>
+                            </>
+                          )}
                         </div>
                       )}
                       <div className="text-center space-y-1">

@@ -4,28 +4,46 @@ const qrcode = require("qrcode");
 const path = require("path");
 const fs = require("fs");
 
+// Prevent Chrome crashes from killing the process
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err.message);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
+});
+
 function findChromePath() {
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    console.log("Using PUPPETEER_EXECUTABLE_PATH:", process.env.PUPPETEER_EXECUTABLE_PATH);
     return process.env.PUPPETEER_EXECUTABLE_PATH;
   }
   const cacheBase = process.env.PUPPETEER_CACHE_DIR || path.join(__dirname, ".cache", "puppeteer");
   const cacheDir = path.join(cacheBase, "chrome");
+  console.log("Scanning for Chrome in:", cacheDir);
   try {
     if (fs.existsSync(cacheDir)) {
       const versions = fs.readdirSync(cacheDir).filter((d) => d.startsWith("linux-")).sort().reverse();
       for (const v of versions) {
         const bin = path.join(cacheDir, v, "chrome-linux64", "chrome");
-        if (fs.existsSync(bin)) return bin;
+        if (fs.existsSync(bin)) {
+          console.log("Found Chrome at:", bin);
+          return bin;
+        }
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    console.error("findChromePath error:", e.message);
+  }
+  console.warn("Chrome not found in cache, letting puppeteer decide");
   return undefined;
 }
+
+const CHROME_PATH = findChromePath();
 
 const app = express();
 app.use(express.json());
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const SESSIONS_DIR = path.join(__dirname, "sessions");
 
 if (!fs.existsSync(SESSIONS_DIR)) {
@@ -54,28 +72,31 @@ async function createSession(userId) {
   const session = { status: "qr_pending", qrBase64: null, client: null, info: null };
   sessions.set(id, session);
 
+  const puppeteerOpts = {
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+      "--disable-extensions",
+      "--disable-background-networking",
+      "--disable-default-apps",
+      "--no-first-run",
+      "--no-zygote",
+      "--single-process",
+    ],
+    timeout: 60000,
+  };
+  if (CHROME_PATH) puppeteerOpts.executablePath = CHROME_PATH;
+
   const client = new Client({
     authStrategy: new LocalAuth({
       clientId: `user_${id}`,
       dataPath: SESSIONS_DIR,
     }),
-    puppeteer: {
-      executablePath: findChromePath(),
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--disable-software-rasterizer",
-        "--disable-extensions",
-        "--disable-background-networking",
-        "--disable-default-apps",
-        "--no-first-run",
-        "--no-zygote",
-      ],
-      timeout: 60000,
-    },
+    puppeteer: puppeteerOpts,
   });
 
   session.client = client;
@@ -143,9 +164,10 @@ app.get("/session/qr", (req, res) => {
   const { user_id } = req.query;
   const session = getSession(user_id);
   if (!session) return res.status(404).json({ error: "No session" });
+  // Return actual status so frontend knows if Chrome failed
+  if (session.status === "disconnected") return res.json({ status: "disconnected", qr: null });
   if (session.status === "connected") return res.json({ status: "connected" });
-  if (!session.qrBase64) return res.json({ status: "qr_pending", qr: null });
-  res.json({ status: "qr_pending", qr: session.qrBase64 });
+  res.json({ status: "qr_pending", qr: session.qrBase64 || null });
 });
 
 app.get("/session/info", (req, res) => {
@@ -188,5 +210,5 @@ app.get("/", (_req, res) => res.json({ status: "ok", service: "WhatsApp Bridge",
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
 app.listen(PORT, () => {
-  console.log(`WhatsApp bridge running on http://localhost:${PORT}`);
+  console.log(`WhatsApp bridge running on port ${PORT}`);
 });
