@@ -25,10 +25,8 @@ services:
     name: onetomany-bridge
     runtime: node
     rootDir: whatsapp-bridge
-    buildCommand: npm install && npx puppeteer browsers install chrome
+    buildCommand: npm install
     startCommand: node index.js
     envVars:
       - key: PORT
         value: "3001"
-      - key: PUPPETEER_CACHE_DIR
-        value: /opt/render/project/src/.puppeteer-cache
