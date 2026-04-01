@@ -3,6 +3,7 @@ const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
 const path = require("path");
 const fs = require("fs");
+const puppeteer = require("puppeteer");
 
 const app = express();
 app.use(express.json());
@@ -42,6 +43,7 @@ async function createSession(userId) {
       dataPath: SESSIONS_DIR,
     }),
     puppeteer: {
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
       headless: true,
       args: [
         "--no-sandbox",
