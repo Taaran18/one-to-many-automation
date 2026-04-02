@@ -123,28 +123,31 @@ def _run_and_reschedule(
     try:
         campaign = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
         if not campaign:
+            print(f"[scheduler] Campaign {campaign_id} not found after run — skipping reschedule")
             return
 
         next_run = compute_next_run(scheduled_at, recurrence, recurrence_config)
-        now = datetime.now(timezone.utc)
 
         # Check stop_at
         if stop_at:
             stop_at_utc = _ensure_utc(stop_at)
             if next_run is None or next_run > stop_at_utc:
+                print(f"[scheduler] Campaign {campaign_id} reached stop_at — setting to draft")
                 campaign.status = "draft"
                 db.commit()
                 return
 
         if next_run:
+            print(f"[scheduler] Campaign {campaign_id} rescheduled for {next_run.isoformat()}")
             campaign.scheduled_at = next_run
             campaign.status = "scheduled"
             db.commit()
         else:
+            print(f"[scheduler] Campaign {campaign_id} has no next run — setting to draft")
             campaign.status = "draft"
             db.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[scheduler] Error rescheduling campaign {campaign_id}: {e}")
     finally:
         db.close()
 

@@ -34,6 +34,36 @@ function toLocalInput(iso?: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function fmtRecurrence(c: Campaign) {
+  const r = c.recurrence;
+  if (!r || r === "one_time") return "One Time";
+  if (r === "daily") return "Daily";
+  if (r === "weekly") {
+    if (c.recurrence_config) {
+      try {
+        const cfg = JSON.parse(c.recurrence_config);
+        if (cfg.days?.length) {
+          return `Weekly · ${(cfg.days as string[]).map((d) => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3)).join(", ")}`;
+        }
+      } catch {}
+    }
+    return "Weekly";
+  }
+  if (r === "monthly") {
+    if (c.recurrence_config) {
+      try {
+        const cfg = JSON.parse(c.recurrence_config);
+        if (cfg.day) return `Monthly · Day ${cfg.day}`;
+      } catch {}
+    }
+    return "Monthly";
+  }
+  return r;
+}
+
+const isRecurring = (c: Campaign) =>
+  c.recurrence && c.recurrence !== "one_time";
+
 function CampaignActions({
   c,
   onStart,
@@ -51,9 +81,11 @@ function CampaignActions({
   onDelete: () => void;
   onTags: () => void;
 }) {
+  const recurring = isRecurring(c);
   return (
     <div className="flex items-center gap-1">
-      {(c.status === "draft" || c.status === "scheduled") && (
+      {/* One-time: show Start on draft/scheduled */}
+      {!recurring && (c.status === "draft" || c.status === "scheduled") && (
         <button
           onClick={onStart}
           className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all"
@@ -61,7 +93,17 @@ function CampaignActions({
           Start
         </button>
       )}
-      {c.status === "running" && (
+      {/* Recurring: show Start only on draft (not scheduled, scheduler handles it) */}
+      {recurring && c.status === "draft" && (
+        <button
+          onClick={onStart}
+          className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all"
+        >
+          Start
+        </button>
+      )}
+      {/* Stop: when running, or recurring & scheduled (cancel upcoming run) */}
+      {(c.status === "running" || (recurring && c.status === "scheduled")) && (
         <button
           onClick={onStop}
           className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all"
@@ -682,7 +724,7 @@ export default function CampaignsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800/60">
                 <tr>
-                  {["Campaign", "Template", "Group", "Scheduled", "Stop Date", "Status", "Sent", ""].map((h) => (
+                  {["Campaign", "Template", "Group", "Recurrence", "Next Run", "Status", "Sent", ""].map((h) => (
                     <th
                       key={h}
                       className={`text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider first:rounded-tl-2xl last:rounded-tr-2xl ${h === "" ? "w-px" : ""}`}
@@ -718,8 +760,21 @@ export default function CampaignsPage() {
                         ? `${c.lead_group_names.length} groups`
                         : c.lead_group_name || "—"}
                     </td>
-                    <td suppressHydrationWarning className="px-4 py-3 text-gray-400 dark:text-gray-500 text-xs">{fmt(c.scheduled_at)}</td>
-                    <td suppressHydrationWarning className="px-4 py-3 text-gray-400 dark:text-gray-500 text-xs">{c.stop_at ? fmt(c.stop_at) : "—"}</td>
+                    <td className="px-4 py-3 text-xs">
+                      <span className={`font-medium ${isRecurring(c) ? "text-indigo-500 dark:text-indigo-400" : "text-gray-400 dark:text-gray-500"}`}>
+                        {fmtRecurrence(c)}
+                      </span>
+                      {c.stop_at && (
+                        <div className="text-gray-400 dark:text-gray-600 mt-0.5">
+                          Stops {fmt(c.stop_at)}
+                        </div>
+                      )}
+                    </td>
+                    <td suppressHydrationWarning className="px-4 py-3 text-gray-400 dark:text-gray-500 text-xs">
+                      {isRecurring(c) && c.status === "scheduled"
+                        ? <span className="text-emerald-500 dark:text-emerald-400 font-medium">{fmt(c.scheduled_at)}</span>
+                        : fmt(c.scheduled_at)}
+                    </td>
                     <td className="px-4 py-3"><Badge label={c.status} /></td>
                     <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">{c.messages_sent ?? 0}</td>
                     <td className="px-4 py-3 w-px whitespace-nowrap">
@@ -768,7 +823,14 @@ export default function CampaignsPage() {
                     <span className="font-semibold text-gray-900 dark:text-white">{c.messages_sent ?? 0}</span> sent
                     {(c.messages_failed ?? 0) > 0 && <span className="text-red-500 ml-1">· {c.messages_failed} failed</span>}
                   </span>
-                  {c.scheduled_at && <span suppressHydrationWarning className="truncate">{fmt(c.scheduled_at)}</span>}
+                  <span className={isRecurring(c) ? "text-indigo-500 dark:text-indigo-400 font-medium" : ""}>
+                    {fmtRecurrence(c)}
+                  </span>
+                  {c.scheduled_at && (
+                    <span suppressHydrationWarning className="truncate">
+                      {isRecurring(c) && c.status === "scheduled" ? "Next: " : ""}{fmt(c.scheduled_at)}
+                    </span>
+                  )}
                 </div>
                 <CampaignActions {...actionProps(c)} />
               </div>
@@ -860,7 +922,7 @@ export default function CampaignsPage() {
       <Modal open={confirmStopId !== null} onClose={() => setConfirmStopId(null)} title="Stop Campaign">
         <div className="space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            This will stop the campaign. It will be moved back to draft status and can be restarted later.
+            This will stop the campaign and cancel any upcoming scheduled runs. It will be moved back to draft status and can be restarted or rescheduled later.
           </p>
           {actionError && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{actionError}</p>}
           <div className="flex gap-3 pt-1">
