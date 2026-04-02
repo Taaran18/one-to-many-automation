@@ -16,14 +16,9 @@ def create_lead(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    db_lead = models.Lead(
-        user_id=current_user.id,
-        name=lead.name,
-        phone_no=lead.phone_no,
-        email=lead.email,
-        tags=lead.tags,
-        status=lead.status or "prospect",
-    )
+    lead_data = lead.model_dump(exclude_none=True)
+    status_val = lead_data.pop("status", None) or "prospect"
+    db_lead = models.Lead(user_id=current_user.id, status=status_val, **lead_data)
     db.add(db_lead)
     db.commit()
     db.refresh(db_lead)
@@ -112,7 +107,6 @@ def delete_lead(
     )
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    # Clear group memberships before deleting to avoid FK violation
     lead.groups.clear()
     db.flush()
     db.delete(lead)
@@ -128,14 +122,9 @@ def import_leads(
 ):
     created = []
     for item in leads:
-        db_lead = models.Lead(
-            user_id=current_user.id,
-            name=item.name,
-            phone_no=item.phone_no,
-            email=item.email,
-            tags=item.tags,
-            status=item.status or "prospect",
-        )
+        item_data = item.model_dump(exclude_none=True)
+        status_val = item_data.pop("status", None) or "prospect"
+        db_lead = models.Lead(user_id=current_user.id, status=status_val, **item_data)
         db.add(db_lead)
         created.append(db_lead)
     db.commit()
@@ -144,7 +133,7 @@ def import_leads(
     return created
 
 
-# ─── Lead Groups ──────────────────────────────────────────────────────────────
+# Lead Groups
 
 
 @router.get("/groups/all", response_model=List[schemas.LeadGroupResponse])

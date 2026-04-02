@@ -3,9 +3,7 @@ from typing import Optional, List
 from datetime import datetime
 
 
-# ─── Auth Schemas ────────────────────────────────────────────────────────────
-
-
+# Auth Schemas
 class UserBase(BaseModel):
     email: str | None = None
     phone_no: str | None = None
@@ -27,13 +25,19 @@ class Token(BaseModel):
     token_type: str
 
 
-# ─── Lead Schemas ─────────────────────────────────────────────────────────────
-
-
+# Lead Schemas
 class LeadCreate(BaseModel):
     name: str
     phone_no: str
     email: Optional[str] = None
+    company_name: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    address_line3: Optional[str] = None
+    pincode: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
     tags: Optional[str] = None
     status: Optional[str] = "prospect"
 
@@ -42,6 +46,14 @@ class LeadUpdate(BaseModel):
     name: Optional[str] = None
     phone_no: Optional[str] = None
     email: Optional[str] = None
+    company_name: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    address_line3: Optional[str] = None
+    pincode: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
     tags: Optional[str] = None
     status: Optional[str] = None
 
@@ -52,6 +64,14 @@ class LeadResponse(BaseModel):
     name: str
     phone_no: str
     email: Optional[str] = None
+    company_name: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    address_line3: Optional[str] = None
+    pincode: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
     tags: Optional[str] = None
     status: str
     created_at: Optional[datetime] = None
@@ -64,13 +84,19 @@ class LeadImportItem(BaseModel):
     name: str
     phone_no: str
     email: Optional[str] = None
+    company_name: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    address_line3: Optional[str] = None
+    pincode: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
     tags: Optional[str] = None
     status: Optional[str] = "prospect"
 
 
-# ─── Lead Group Schemas ───────────────────────────────────────────────────────
-
-
+# Lead Group Schemas
 class LeadGroupCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -97,9 +123,7 @@ class AddMembersRequest(BaseModel):
     lead_ids: List[int]
 
 
-# ─── Template Schemas ─────────────────────────────────────────────────────────
-
-
+# Template Schemas
 class TemplateCreate(BaseModel):
     name: str
     body: str
@@ -113,23 +137,23 @@ class TemplateUpdate(BaseModel):
 
 
 class TemplateButtonItem(BaseModel):
-    type: str           # QUICK_REPLY | URL | PHONE_NUMBER
+    type: str
     text: str
     url: Optional[str] = None
     phone_number: Optional[str] = None
 
 
 class TemplateMetaCreate(BaseModel):
-    name: str                               # display name (stored locally)
-    meta_template_name: str                 # snake_case, sent to Meta
-    category: str                           # MARKETING | UTILITY | AUTHENTICATION
-    language: str = "en"                    # default en, not shown in UI
-    body: str                               # body text with {{1}}, {{2}} placeholders
-    header: Optional[str] = None            # optional header text
-    header_image_url: Optional[str] = None  # optional header image URL
-    footer: Optional[str] = None            # optional footer text
+    name: str
+    meta_template_name: str
+    category: str
+    language: str = "en"
+    body: str
+    header: Optional[str] = None
+    header_image_url: Optional[str] = None
+    footer: Optional[str] = None
     buttons: Optional[List[TemplateButtonItem]] = None
-    variable_samples: Optional[List[str]] = None  # sample values for {{1}}, {{2}}, ...
+    variable_samples: Optional[List[str]] = None
 
 
 class TemplateResponse(BaseModel):
@@ -151,9 +175,7 @@ class TemplateResponse(BaseModel):
         from_attributes = True
 
 
-# ─── Campaign Schemas ─────────────────────────────────────────────────────────
-
-
+# Campaign Schemas
 class CampaignCreate(BaseModel):
     name: str
     template_id: Optional[int] = None
@@ -199,9 +221,7 @@ class CampaignResponse(BaseModel):
         from_attributes = True
 
 
-# ─── Message Log Schemas ──────────────────────────────────────────────────────
-
-
+# Message Log Schemas
 class MessageLogResponse(BaseModel):
     id: int
     campaign_id: int
@@ -217,9 +237,7 @@ class MessageLogResponse(BaseModel):
         from_attributes = True
 
 
-# ─── Dashboard Schemas ────────────────────────────────────────────────────────
-
-
+# Dashboard Schemas
 class DashboardStats(BaseModel):
     total_leads: int
     leads_touched: int
@@ -245,9 +263,7 @@ class ScheduleItem(BaseModel):
     template_name: Optional[str] = None
 
 
-# ─── WhatsApp Schemas ─────────────────────────────────────────────────────────
-
-
+# WhatsApp Schemas
 class WAStatusResponse(BaseModel):
     status: str
     user_email: Optional[str] = None

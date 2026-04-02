@@ -4,8 +4,16 @@ export interface Lead {
   name: string;
   phone_no: string;
   email?: string;
+  company_name?: string;
+  address_line1?: string;
+  address_line2?: string;
+  address_line3?: string;
+  pincode?: string;
+  city?: string;
+  state?: string;
+  country?: string;
   tags?: string;
-  status: "prospect" | "customer";
+  status: string;
   created_at?: string;
 }
 
