@@ -72,6 +72,73 @@ async function syncGroups(
   }
 }
 
+// ── Status Combobox ──
+function StatusCombobox({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="flex">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setOpen(true)}
+          placeholder="Select or type a status"
+          className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-r-0 rounded-l-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all"
+        />
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="px-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-r-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+      {open && (
+        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+          {PRESET_STATUSES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => {
+                onChange(s);
+                setOpen(false);
+              }}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                value === s
+                  ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-semibold"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Lead Form Fields (defined at module level to prevent remount on each keystroke) ──
 function LeadFormFields({
   f,
@@ -86,7 +153,6 @@ function LeadFormFields({
   groupIds: number[];
   setGroupIds: (v: number[]) => void;
   groups: LeadGroup[];
-  idPrefix: string;
 }) {
   const toggleGroup = (gid: number) => {
     setGroupIds(
@@ -116,8 +182,9 @@ function LeadFormFields({
           <input
             required
             type="text"
+            inputMode="numeric"
             value={f.phone_no}
-            onChange={(e) => setF({ ...f, phone_no: e.target.value })}
+            onChange={(e) => setF({ ...f, phone_no: e.target.value.replace(/[^0-9+]/g, "") })}
             placeholder="+919876543210"
             className={INPUT}
           />
@@ -186,8 +253,9 @@ function LeadFormFields({
           <label className={LABEL}>Pincode</label>
           <input
             type="text"
+            inputMode="numeric"
             value={f.pincode}
-            onChange={(e) => setF({ ...f, pincode: e.target.value })}
+            onChange={(e) => setF({ ...f, pincode: e.target.value.replace(/[^0-9]/g, "") })}
             placeholder="400001"
             className={INPUT}
           />
@@ -243,18 +311,10 @@ function LeadFormFields({
       {/* Status combobox */}
       <div>
         <label className={LABEL}>Status</label>
-        <input
-          list={`${idPrefix}-status-list`}
+        <StatusCombobox
           value={f.status}
-          onChange={(e) => setF({ ...f, status: e.target.value })}
-          placeholder="Select or type a status"
-          className={INPUT}
+          onChange={(v) => setF({ ...f, status: v })}
         />
-        <datalist id={`${idPrefix}-status-list`}>
-          {PRESET_STATUSES.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
       </div>
 
       {/* Groups */}
@@ -786,7 +846,6 @@ export default function LeadsPage() {
             groupIds={addGroupIds}
             setGroupIds={setAddGroupIds}
             groups={groups}
-            idPrefix="add"
           />
           <div className="flex gap-3 pt-2">
             <button
@@ -824,7 +883,6 @@ export default function LeadsPage() {
             groupIds={editGroupIds}
             setGroupIds={setEditGroupIds}
             groups={groups}
-            idPrefix="edit"
           />
           <div className="flex gap-3 pt-2">
             <button
