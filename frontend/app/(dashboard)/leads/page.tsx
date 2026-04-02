@@ -72,6 +72,225 @@ async function syncGroups(
   }
 }
 
+// ── Lead Form Fields (defined at module level to prevent remount on each keystroke) ──
+function LeadFormFields({
+  f,
+  setF,
+  groupIds,
+  setGroupIds,
+  groups,
+  idPrefix,
+}: {
+  f: typeof EMPTY_FORM;
+  setF: (v: typeof EMPTY_FORM) => void;
+  groupIds: number[];
+  setGroupIds: (v: number[]) => void;
+  groups: LeadGroup[];
+  idPrefix: string;
+}) {
+  const toggleGroup = (gid: number) => {
+    setGroupIds(
+      groupIds.includes(gid)
+        ? groupIds.filter((id) => id !== gid)
+        : [...groupIds, gid],
+    );
+  };
+
+  return (
+    <div className="overflow-y-auto max-h-[60vh] pr-1 space-y-4">
+      {/* Row: Name + Phone */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={LABEL}>Name *</label>
+          <input
+            required
+            type="text"
+            value={f.name}
+            onChange={(e) => setF({ ...f, name: e.target.value })}
+            placeholder="Full name"
+            className={INPUT}
+          />
+        </div>
+        <div>
+          <label className={LABEL}>Phone *</label>
+          <input
+            required
+            type="text"
+            value={f.phone_no}
+            onChange={(e) => setF({ ...f, phone_no: e.target.value })}
+            placeholder="+919876543210"
+            className={INPUT}
+          />
+        </div>
+      </div>
+
+      {/* Row: Email + Company */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={LABEL}>Email</label>
+          <input
+            type="email"
+            value={f.email}
+            onChange={(e) => setF({ ...f, email: e.target.value })}
+            placeholder="email@example.com"
+            className={INPUT}
+          />
+        </div>
+        <div>
+          <label className={LABEL}>Company Name</label>
+          <input
+            type="text"
+            value={f.company_name}
+            onChange={(e) => setF({ ...f, company_name: e.target.value })}
+            placeholder="Acme Corp"
+            className={INPUT}
+          />
+        </div>
+      </div>
+
+      {/* Address */}
+      <div>
+        <label className={LABEL}>Address Line 1</label>
+        <input
+          type="text"
+          value={f.address_line1}
+          onChange={(e) => setF({ ...f, address_line1: e.target.value })}
+          placeholder="Street / Building"
+          className={INPUT}
+        />
+      </div>
+      <div>
+        <label className={LABEL}>Address Line 2</label>
+        <input
+          type="text"
+          value={f.address_line2}
+          onChange={(e) => setF({ ...f, address_line2: e.target.value })}
+          placeholder="Area / Landmark"
+          className={INPUT}
+        />
+      </div>
+      <div>
+        <label className={LABEL}>Address Line 3</label>
+        <input
+          type="text"
+          value={f.address_line3}
+          onChange={(e) => setF({ ...f, address_line3: e.target.value })}
+          placeholder="Locality (optional)"
+          className={INPUT}
+        />
+      </div>
+
+      {/* Row: Pincode + City */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={LABEL}>Pincode</label>
+          <input
+            type="text"
+            value={f.pincode}
+            onChange={(e) => setF({ ...f, pincode: e.target.value })}
+            placeholder="400001"
+            className={INPUT}
+          />
+        </div>
+        <div>
+          <label className={LABEL}>City</label>
+          <input
+            type="text"
+            value={f.city}
+            onChange={(e) => setF({ ...f, city: e.target.value })}
+            placeholder="Mumbai"
+            className={INPUT}
+          />
+        </div>
+      </div>
+
+      {/* Row: State + Country */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={LABEL}>State</label>
+          <input
+            type="text"
+            value={f.state}
+            onChange={(e) => setF({ ...f, state: e.target.value })}
+            placeholder="Maharashtra"
+            className={INPUT}
+          />
+        </div>
+        <div>
+          <label className={LABEL}>Country</label>
+          <input
+            type="text"
+            value={f.country}
+            onChange={(e) => setF({ ...f, country: e.target.value })}
+            placeholder="India"
+            className={INPUT}
+          />
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div>
+        <label className={LABEL}>Tags</label>
+        <input
+          type="text"
+          value={f.tags}
+          onChange={(e) => setF({ ...f, tags: e.target.value })}
+          placeholder="VIP, Referral (comma-separated)"
+          className={INPUT}
+        />
+      </div>
+
+      {/* Status combobox */}
+      <div>
+        <label className={LABEL}>Status</label>
+        <input
+          list={`${idPrefix}-status-list`}
+          value={f.status}
+          onChange={(e) => setF({ ...f, status: e.target.value })}
+          placeholder="Select or type a status"
+          className={INPUT}
+        />
+        <datalist id={`${idPrefix}-status-list`}>
+          {PRESET_STATUSES.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      </div>
+
+      {/* Groups */}
+      {groups.length > 0 && (
+        <div>
+          <label className={LABEL}>Add to Groups</label>
+          <div className="space-y-2">
+            {groups.map((g) => (
+              <label
+                key={g.id}
+                className="flex items-center gap-3 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all"
+              >
+                <input
+                  type="checkbox"
+                  checked={groupIds.includes(g.id)}
+                  onChange={() => toggleGroup(g.id)}
+                  className="w-4 h-4 rounded accent-indigo-600"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {g.name}
+                  </p>
+                  {g.description && (
+                    <p className="text-xs text-gray-400 truncate">{g.description}</p>
+                  )}
+                </div>
+                <span className="text-xs text-gray-400">{g.member_count}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [groups, setGroups] = useState<LeadGroup[]>([]);
@@ -292,222 +511,6 @@ export default function LeadsPage() {
       alert(err.message);
     }
   };
-
-  // ── Shared: Lead Form Fields ──
-  function LeadFormFields({
-    f,
-    setF,
-    groupIds,
-    setGroupIds,
-    idPrefix,
-  }: {
-    f: typeof EMPTY_FORM;
-    setF: (v: typeof EMPTY_FORM) => void;
-    groupIds: number[];
-    setGroupIds: (v: number[]) => void;
-    idPrefix: string;
-  }) {
-    const toggleGroup = (gid: number) => {
-      setGroupIds(
-        groupIds.includes(gid)
-          ? groupIds.filter((id) => id !== gid)
-          : [...groupIds, gid],
-      );
-    };
-    return (
-      <div className="overflow-y-auto max-h-[60vh] pr-1 space-y-4">
-        {/* Row: Name + Phone */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={LABEL}>Name *</label>
-            <input
-              required
-              type="text"
-              value={f.name}
-              onChange={(e) => setF({ ...f, name: e.target.value })}
-              placeholder="Full name"
-              className={INPUT}
-            />
-          </div>
-          <div>
-            <label className={LABEL}>Phone *</label>
-            <input
-              required
-              type="text"
-              value={f.phone_no}
-              onChange={(e) => setF({ ...f, phone_no: e.target.value })}
-              placeholder="+919876543210"
-              className={INPUT}
-            />
-          </div>
-        </div>
-
-        {/* Row: Email + Company */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={LABEL}>Email</label>
-            <input
-              type="email"
-              value={f.email}
-              onChange={(e) => setF({ ...f, email: e.target.value })}
-              placeholder="email@example.com"
-              className={INPUT}
-            />
-          </div>
-          <div>
-            <label className={LABEL}>Company Name</label>
-            <input
-              type="text"
-              value={f.company_name}
-              onChange={(e) => setF({ ...f, company_name: e.target.value })}
-              placeholder="Acme Corp"
-              className={INPUT}
-            />
-          </div>
-        </div>
-
-        {/* Address */}
-        <div>
-          <label className={LABEL}>Address Line 1</label>
-          <input
-            type="text"
-            value={f.address_line1}
-            onChange={(e) => setF({ ...f, address_line1: e.target.value })}
-            placeholder="Street / Building"
-            className={INPUT}
-          />
-        </div>
-        <div>
-          <label className={LABEL}>Address Line 2</label>
-          <input
-            type="text"
-            value={f.address_line2}
-            onChange={(e) => setF({ ...f, address_line2: e.target.value })}
-            placeholder="Area / Landmark"
-            className={INPUT}
-          />
-        </div>
-        <div>
-          <label className={LABEL}>Address Line 3</label>
-          <input
-            type="text"
-            value={f.address_line3}
-            onChange={(e) => setF({ ...f, address_line3: e.target.value })}
-            placeholder="Locality (optional)"
-            className={INPUT}
-          />
-        </div>
-
-        {/* Row: Pincode + City */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={LABEL}>Pincode</label>
-            <input
-              type="text"
-              value={f.pincode}
-              onChange={(e) => setF({ ...f, pincode: e.target.value })}
-              placeholder="400001"
-              className={INPUT}
-            />
-          </div>
-          <div>
-            <label className={LABEL}>City</label>
-            <input
-              type="text"
-              value={f.city}
-              onChange={(e) => setF({ ...f, city: e.target.value })}
-              placeholder="Mumbai"
-              className={INPUT}
-            />
-          </div>
-        </div>
-
-        {/* Row: State + Country */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={LABEL}>State</label>
-            <input
-              type="text"
-              value={f.state}
-              onChange={(e) => setF({ ...f, state: e.target.value })}
-              placeholder="Maharashtra"
-              className={INPUT}
-            />
-          </div>
-          <div>
-            <label className={LABEL}>Country</label>
-            <input
-              type="text"
-              value={f.country}
-              onChange={(e) => setF({ ...f, country: e.target.value })}
-              placeholder="India"
-              className={INPUT}
-            />
-          </div>
-        </div>
-
-        {/* Tags */}
-        <div>
-          <label className={LABEL}>Tags</label>
-          <input
-            type="text"
-            value={f.tags}
-            onChange={(e) => setF({ ...f, tags: e.target.value })}
-            placeholder="VIP, Referral (comma-separated)"
-            className={INPUT}
-          />
-        </div>
-
-        {/* Status combobox */}
-        <div>
-          <label className={LABEL}>Status</label>
-          <input
-            list={`${idPrefix}-status-list`}
-            value={f.status}
-            onChange={(e) => setF({ ...f, status: e.target.value })}
-            placeholder="Select or type a status"
-            className={INPUT}
-          />
-          <datalist id={`${idPrefix}-status-list`}>
-            {PRESET_STATUSES.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-        </div>
-
-        {/* Groups */}
-        {groups.length > 0 && (
-          <div>
-            <label className={LABEL}>Add to Groups</label>
-            <div className="space-y-2">
-              {groups.map((g) => (
-                <label
-                  key={g.id}
-                  className="flex items-center gap-3 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all"
-                >
-                  <input
-                    type="checkbox"
-                    checked={groupIds.includes(g.id)}
-                    onChange={() => toggleGroup(g.id)}
-                    className="w-4 h-4 rounded accent-indigo-600"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {g.name}
-                    </p>
-                    {g.description && (
-                      <p className="text-xs text-gray-400 truncate">{g.description}</p>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-400">{g.member_count}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -782,6 +785,7 @@ export default function LeadsPage() {
             setF={setForm}
             groupIds={addGroupIds}
             setGroupIds={setAddGroupIds}
+            groups={groups}
             idPrefix="add"
           />
           <div className="flex gap-3 pt-2">
@@ -819,6 +823,7 @@ export default function LeadsPage() {
             setF={setEditForm}
             groupIds={editGroupIds}
             setGroupIds={setEditGroupIds}
+            groups={groups}
             idPrefix="edit"
           />
           <div className="flex gap-3 pt-2">
@@ -911,11 +916,7 @@ export default function LeadsPage() {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className={`${BTN_P} flex-1`}
-            >
+            <button type="submit" disabled={saving} className={`${BTN_P} flex-1`}>
               {saving && <Spinner className="text-white" />}Create
             </button>
           </div>
@@ -946,10 +947,7 @@ export default function LeadsPage() {
             <textarea
               value={editGroupForm.description}
               onChange={(e) =>
-                setEditGroupForm({
-                  ...editGroupForm,
-                  description: e.target.value,
-                })
+                setEditGroupForm({ ...editGroupForm, description: e.target.value })
               }
               placeholder="Optional description"
               rows={3}
@@ -964,11 +962,7 @@ export default function LeadsPage() {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className={`${BTN_P} flex-1`}
-            >
+            <button type="submit" disabled={saving} className={`${BTN_P} flex-1`}>
               {saving && <Spinner className="text-white" />}Save Changes
             </button>
           </div>
