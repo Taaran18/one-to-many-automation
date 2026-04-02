@@ -12,6 +12,7 @@ from database import get_db
 from dependencies import get_current_user
 
 import os
+import re
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -26,6 +27,24 @@ def _resolve_template(body: str, lead: models.Lead) -> str:
         .replace("{{email}}", lead.email or "")
         .replace("{{tags}}", lead.tags or "")
     )
+
+
+def _meta_body_params(body: str, lead: models.Lead) -> list:
+    """Extract {{var}} placeholders in order and return resolved Meta parameters."""
+    var_map = {
+        "name": lead.name or "",
+        "phone": lead.phone_no or "",
+        "email": lead.email or "",
+        "tags": lead.tags or "",
+    }
+    seen = set()
+    params = []
+    for match in re.finditer(r"\{\{(\w+)\}\}", body):
+        var = match.group(1)
+        if var in var_map and var not in seen:
+            seen.add(var)
+            params.append({"type": "text", "text": var_map[var]})
+    return params
 
 
 def _run_campaign(campaign_id: int, user_id: int):
@@ -93,24 +112,52 @@ def _run_campaign(campaign_id: int, user_id: int):
             error = None
             try:
                 if use_meta:
+                    tmpl = campaign.template
+                    meta_tpl_name = tmpl.meta_template_name if tmpl else None
+                    meta_lang = (tmpl.meta_language or "en_US") if tmpl else "en_US"
+
+                    if meta_tpl_name:
+                        # Send as approved Meta template (works outside 24h window)
+                        params = _meta_body_params(template_body, lead)
+                        components = (
+                            [{"type": "body", "parameters": params}] if params else []
+                        )
+                        payload = {
+                            "messaging_product": "whatsapp",
+                            "to": phone,
+                            "type": "template",
+                            "template": {
+                                "name": meta_tpl_name,
+                                "language": {"code": meta_lang},
+                                "components": components,
+                            },
+                        }
+                    else:
+                        # Fallback: plain text (only works within 24h window)
+                        payload = {
+                            "messaging_product": "whatsapp",
+                            "to": phone,
+                            "type": "text",
+                            "text": {"body": message},
+                        }
+
                     resp = httpx.post(
                         f"{META_API_BASE}/{meta_phone_id}/messages",
                         headers={
                             "Authorization": f"Bearer {meta_token}",
                             "Content-Type": "application/json",
                         },
-                        json={
-                            "messaging_product": "whatsapp",
-                            "to": phone,
-                            "type": "text",
-                            "text": {"body": message},
-                        },
+                        json=payload,
                         timeout=30,
                     )
                     if resp.status_code == 200 and resp.json().get("messages"):
                         status = "sent"
                     else:
-                        error = resp.json().get("error", {}).get("message", "Meta API error")
+                        error = (
+                            resp.json()
+                            .get("error", {})
+                            .get("message", "Meta API error")
+                        )
                 else:
                     resp = httpx.post(
                         f"{BRIDGE_URL}/message/send",
@@ -136,7 +183,6 @@ def _run_campaign(campaign_id: int, user_id: int):
             db.add(log)
             db.commit()
 
-            # 2-second delay between messages to avoid spam (skip after last)
             if i < len(leads) - 1:
                 time.sleep(2)
 
@@ -164,7 +210,6 @@ def create_campaign(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Use first group as primary lead_group_id for display; store all in lead_group_ids
     primary_group_id = campaign.lead_group_id
     all_group_ids = campaign.lead_group_ids or (
         [campaign.lead_group_id] if campaign.lead_group_id else []
@@ -240,7 +285,6 @@ def update_campaign(
     if not c:
         raise HTTPException(status_code=404, detail="Campaign not found")
     update_data = update.model_dump(exclude_unset=True)
-    # Allow tags update regardless of status; other fields require draft/scheduled
     non_tag_fields = {k: v for k, v in update_data.items() if k != "tags"}
     if non_tag_fields and c.status not in ("draft", "scheduled"):
         raise HTTPException(

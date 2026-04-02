@@ -149,8 +149,18 @@ export default function CampaignsPage() {
     setSaving(true);
     let recurrence_config: string | null = null;
     if (form.recurrence === "weekly" && selectedDays.length > 0) {
-      const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
-      recurrence_config = JSON.stringify({ days: selectedDays.map((d) => dayNames[d]) });
+      const dayNames = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+      ];
+      recurrence_config = JSON.stringify({
+        days: selectedDays.map((d) => dayNames[d]),
+      });
     } else if (form.recurrence === "monthly") {
       recurrence_config = JSON.stringify({ day: monthDay });
     }
@@ -160,7 +170,7 @@ export default function CampaignsPage() {
         template_id: form.template_id ? +form.template_id : null,
         lead_group_id: selectedGroupIds[0] ?? null,
         lead_group_ids: selectedGroupIds.length > 0 ? selectedGroupIds : null,
-        scheduled_at: form.scheduled_at || null,
+        scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
         recurrence: form.recurrence,
         recurrence_config,
       });
@@ -240,9 +250,12 @@ export default function CampaignsPage() {
   const allTags = Array.from(
     new Set(
       campaigns.flatMap((c) =>
-        (c.tags ?? "").split(",").map((s) => s.trim()).filter(Boolean)
-      )
-    )
+        (c.tags ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ),
+    ),
   ).sort();
 
   const handleSaveTags = async (e: React.FormEvent) => {
@@ -250,7 +263,9 @@ export default function CampaignsPage() {
     if (!tagsCampaign) return;
     setTagsSaving(true);
     try {
-      await apiPut(`/campaigns/${tagsCampaign.id}`, { tags: tagsValue || null });
+      await apiPut(`/campaigns/${tagsCampaign.id}`, {
+        tags: tagsValue || null,
+      });
       setTagsOpen(false);
       load();
     } catch (err: any) {
@@ -260,8 +275,14 @@ export default function CampaignsPage() {
     }
   };
 
-  const handleRemoveTagFromCampaign = async (campaign: Campaign, tag: string) => {
-    const current = (campaign.tags ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const handleRemoveTagFromCampaign = async (
+    campaign: Campaign,
+    tag: string,
+  ) => {
+    const current = (campaign.tags ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const updated = current.filter((t) => t !== tag).join(", ") || null;
     try {
       await apiPut(`/campaigns/${campaign.id}`, { tags: updated });
@@ -286,11 +307,24 @@ export default function CampaignsPage() {
         <div className="flex items-center gap-2">
           {allTags.length > 0 && (
             <button
-              onClick={() => { setTagMgmtOpen(true); setSelectedTag(allTags[0]); }}
+              onClick={() => {
+                setTagMgmtOpen(true);
+                setSelectedTag(allTags[0]);
+              }}
               className={BTN_GHOST}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
+                />
               </svg>
               <span className="hidden sm:inline">Manage Tags</span>
             </button>
@@ -395,11 +429,18 @@ export default function CampaignsPage() {
                       </Link>
                       {c.tags && (
                         <div className="flex gap-1 flex-wrap mt-1">
-                          {c.tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
-                            <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800">
-                              {tag}
-                            </span>
-                          ))}
+                          {c.tags
+                            .split(",")
+                            .map((t) => t.trim())
+                            .filter(Boolean)
+                            .map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-xs px-1.5 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800"
+                              >
+                                {tag}
+                              </span>
+                            ))}
                         </div>
                       )}
                     </td>
@@ -481,11 +522,18 @@ export default function CampaignsPage() {
 
                 {c.tags && (
                   <div className="flex gap-1 flex-wrap">
-                    {c.tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
-                      <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800">
-                        {tag}
-                      </span>
-                    ))}
+                    {c.tags
+                      .split(",")
+                      .map((t) => t.trim())
+                      .filter(Boolean)
+                      .map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-xs px-1.5 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800"
+                        >
+                          {tag}
+                        </span>
+                      ))}
                   </div>
                 )}
 
@@ -702,7 +750,8 @@ export default function CampaignsPage() {
               Template
               {waConnected && waType && (
                 <span className="ml-2 font-normal text-indigo-500 dark:text-indigo-400 normal-case">
-                  ({waType === "qr" ? "QR connected" : "Meta API connected"} — showing matching templates)
+                  ({waType === "qr" ? "QR connected" : "Meta API connected"} —
+                  showing matching templates)
                 </span>
               )}
             </label>
@@ -715,18 +764,31 @@ export default function CampaignsPage() {
             >
               <option value="">Select a template</option>
               {templates
-                .filter((t) => !waConnected || !waType || (t.connection_type ?? "qr") === waType)
+                .filter(
+                  (t) =>
+                    !waConnected ||
+                    !waType ||
+                    (t.connection_type ?? "qr") === waType,
+                )
                 .map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
                 ))}
             </select>
-            {waConnected && waType && templates.filter((t) => (t.connection_type ?? "qr") !== waType).length > 0 && (
-              <p className="text-xs text-gray-400 mt-1">
-                {templates.filter((t) => (t.connection_type ?? "qr") !== waType).length} template(s) hidden — not compatible with current connection.
-              </p>
-            )}
+            {waConnected &&
+              waType &&
+              templates.filter((t) => (t.connection_type ?? "qr") !== waType)
+                .length > 0 && (
+                <p className="text-xs text-gray-400 mt-1">
+                  {
+                    templates.filter(
+                      (t) => (t.connection_type ?? "qr") !== waType,
+                    ).length
+                  }{" "}
+                  template(s) hidden — not compatible with current connection.
+                </p>
+              )}
           </div>
 
           {/* Multi-group selector */}
@@ -826,30 +888,34 @@ export default function CampaignsPage() {
                 Days of Week
               </label>
               <div className="flex gap-1.5 flex-wrap">
-                {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d, i) => {
-                  const active = selectedDays.includes(i);
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() =>
-                        setSelectedDays((prev) =>
-                          active ? prev.filter((x) => x !== i) : [...prev, i]
-                        )
-                      }
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        active
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-400"
-                      }`}
-                    >
-                      {d}
-                    </button>
-                  );
-                })}
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                  (d, i) => {
+                    const active = selectedDays.includes(i);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() =>
+                          setSelectedDays((prev) =>
+                            active ? prev.filter((x) => x !== i) : [...prev, i],
+                          )
+                        }
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          active
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-400"
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    );
+                  },
+                )}
               </div>
               {selectedDays.length === 0 && (
-                <p className="text-xs text-amber-500 mt-1">Select at least one day.</p>
+                <p className="text-xs text-amber-500 mt-1">
+                  Select at least one day.
+                </p>
               )}
             </div>
           )}
@@ -876,14 +942,18 @@ export default function CampaignsPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 mt-1">Campaign runs on day {monthDay} of every month.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Campaign runs on day {monthDay} of every month.
+              </p>
             </div>
           )}
 
           {/* Schedule */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-              {form.recurrence === "one_time" ? "Schedule" : "Start Date & Time"}
+              {form.recurrence === "one_time"
+                ? "Schedule"
+                : "Start Date & Time"}
             </label>
             <input
               type="datetime-local"
@@ -918,11 +988,18 @@ export default function CampaignsPage() {
       </Modal>
 
       {/* ── Quick Tags Modal ── */}
-      <Modal open={tagsOpen} onClose={() => setTagsOpen(false)} title="Edit Tags">
+      <Modal
+        open={tagsOpen}
+        onClose={() => setTagsOpen(false)}
+        title="Edit Tags"
+      >
         <form onSubmit={handleSaveTags} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-              Tags for <span className="text-gray-700 dark:text-gray-300">{tagsCampaign?.name}</span>
+              Tags for{" "}
+              <span className="text-gray-700 dark:text-gray-300">
+                {tagsCampaign?.name}
+              </span>
             </label>
             <input
               value={tagsValue}
@@ -931,22 +1008,35 @@ export default function CampaignsPage() {
               className={INPUT}
               autoFocus
             />
-            <p className="text-xs text-gray-400 mt-1">Comma-separated. Used for personal organisation only.</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Comma-separated. Used for personal organisation only.
+            </p>
           </div>
           {/* Existing tags as clickable suggestions */}
           {(() => {
-            const currentTags = new Set(tagsValue.split(",").map((s) => s.trim()).filter(Boolean));
+            const currentTags = new Set(
+              tagsValue
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean),
+            );
             const suggestions = allTags.filter((t) => !currentTags.has(t));
             if (suggestions.length === 0) return null;
             return (
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Existing Tags</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                  Existing Tags
+                </p>
                 <div className="flex gap-1.5 flex-wrap">
                   {suggestions.map((tag) => (
                     <button
                       key={tag}
                       type="button"
-                      onClick={() => setTagsValue((prev) => prev.trim() ? `${prev.trim()}, ${tag}` : tag)}
+                      onClick={() =>
+                        setTagsValue((prev) =>
+                          prev.trim() ? `${prev.trim()}, ${tag}` : tag,
+                        )
+                      }
                       className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-700 transition-colors"
                     >
                       + {tag}
@@ -958,16 +1048,33 @@ export default function CampaignsPage() {
           })()}
           {tagsValue && (
             <div className="flex gap-1.5 flex-wrap">
-              {tagsValue.split(",").map((tag) => tag.trim()).filter(Boolean).map((tag) => (
-                <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800 font-medium">
-                  {tag}
-                </span>
-              ))}
+              {tagsValue
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter(Boolean)
+                .map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-xs px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800 font-medium"
+                  >
+                    {tag}
+                  </span>
+                ))}
             </div>
           )}
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={() => setTagsOpen(false)} className={`${BTN_GHOST} flex-1`}>Cancel</button>
-            <button type="submit" disabled={tagsSaving} className={`${BTN_PRIMARY} flex-1`}>
+            <button
+              type="button"
+              onClick={() => setTagsOpen(false)}
+              className={`${BTN_GHOST} flex-1`}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={tagsSaving}
+              className={`${BTN_PRIMARY} flex-1`}
+            >
               {tagsSaving && <Spinner className="text-white" />}
               Save Tags
             </button>
@@ -976,17 +1083,29 @@ export default function CampaignsPage() {
       </Modal>
 
       {/* ── Tag Management Modal ── */}
-      <Modal open={tagMgmtOpen} onClose={() => setTagMgmtOpen(false)} wide title="Manage Tags">
+      <Modal
+        open={tagMgmtOpen}
+        onClose={() => setTagMgmtOpen(false)}
+        wide
+        title="Manage Tags"
+      >
         <div className="flex gap-5 min-h-[50vh]">
           {/* Left: tag list */}
           <div className="w-48 shrink-0 border-r border-gray-100 dark:border-gray-800 pr-4 space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">All Tags</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              All Tags
+            </p>
             {allTags.length === 0 && (
-              <p className="text-xs text-gray-400">No tags yet. Add tags using the Tags button on a campaign.</p>
+              <p className="text-xs text-gray-400">
+                No tags yet. Add tags using the Tags button on a campaign.
+              </p>
             )}
             {allTags.map((tag) => {
               const count = campaigns.filter((c) =>
-                (c.tags ?? "").split(",").map((s) => s.trim()).includes(tag)
+                (c.tags ?? "")
+                  .split(",")
+                  .map((s) => s.trim())
+                  .includes(tag),
               ).length;
               return (
                 <button
@@ -999,7 +1118,9 @@ export default function CampaignsPage() {
                   }`}
                 >
                   <span className="truncate">{tag}</span>
-                  <span className={`text-xs ml-1 shrink-0 ${selectedTag === tag ? "text-violet-200" : "text-gray-400"}`}>
+                  <span
+                    className={`text-xs ml-1 shrink-0 ${selectedTag === tag ? "text-violet-200" : "text-gray-400"}`}
+                  >
                     {count}
                   </span>
                 </button>
@@ -1012,12 +1133,18 @@ export default function CampaignsPage() {
             {selectedTag ? (
               <>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                  Campaigns tagged <span className="text-violet-600 dark:text-violet-400">{selectedTag}</span>
+                  Campaigns tagged{" "}
+                  <span className="text-violet-600 dark:text-violet-400">
+                    {selectedTag}
+                  </span>
                 </p>
                 <div className="space-y-2">
                   {campaigns
                     .filter((c) =>
-                      (c.tags ?? "").split(",").map((s) => s.trim()).includes(selectedTag)
+                      (c.tags ?? "")
+                        .split(",")
+                        .map((s) => s.trim())
+                        .includes(selectedTag),
                     )
                     .map((c) => (
                       <div
@@ -1025,18 +1152,28 @@ export default function CampaignsPage() {
                         className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</p>
-                          <p className="text-xs text-gray-400 truncate">{c.template_name || "No template"}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {c.name}
+                          </p>
+                          <p className="text-xs text-gray-400 truncate">
+                            {c.template_name || "No template"}
+                          </p>
                         </div>
                         <button
                           onClick={async () => {
                             await handleRemoveTagFromCampaign(c, selectedTag);
                             const remaining = campaigns.filter(
-                              (x) => x.id !== c.id &&
-                                (x.tags ?? "").split(",").map((s) => s.trim()).includes(selectedTag)
+                              (x) =>
+                                x.id !== c.id &&
+                                (x.tags ?? "")
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .includes(selectedTag),
                             );
                             if (remaining.length === 0) {
-                              const next = allTags.filter((t) => t !== selectedTag)[0] ?? null;
+                              const next =
+                                allTags.filter((t) => t !== selectedTag)[0] ??
+                                null;
                               setSelectedTag(next);
                               if (!next) setTagMgmtOpen(false);
                             }
@@ -1050,7 +1187,9 @@ export default function CampaignsPage() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-gray-400 mt-4">Select a tag to see campaigns.</p>
+              <p className="text-sm text-gray-400 mt-4">
+                Select a tag to see campaigns.
+              </p>
             )}
           </div>
         </div>
