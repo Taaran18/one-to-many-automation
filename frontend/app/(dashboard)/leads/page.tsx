@@ -146,7 +146,6 @@ function LeadFormFields({
   groupIds,
   setGroupIds,
   groups,
-  idPrefix,
 }: {
   f: typeof EMPTY_FORM;
   setF: (v: typeof EMPTY_FORM) => void;
