@@ -15,6 +15,9 @@ const BTN_PRIMARY =
   "flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-[.98]";
 const BTN_GHOST =
   "flex items-center justify-center gap-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition-all";
+const LABEL = "block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5";
+
+const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 function fmt(d?: string) {
   if (!d) return "—";
@@ -24,17 +27,26 @@ function fmt(d?: string) {
   });
 }
 
+function toLocalInput(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function CampaignActions({
   c,
   onStart,
-  onRerun,
+  onStop,
+  onEdit,
   onDuplicate,
   onDelete,
   onTags,
 }: {
   c: Campaign;
   onStart: () => void;
-  onRerun: () => void;
+  onStop: () => void;
+  onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onTags: () => void;
@@ -49,14 +61,20 @@ function CampaignActions({
           Start
         </button>
       )}
-      {(c.status === "completed" || c.status === "failed") && (
+      {c.status === "running" && (
         <button
-          onClick={onRerun}
+          onClick={onStop}
           className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all"
         >
-          Rerun
+          Stop
         </button>
       )}
+      <button
+        onClick={onEdit}
+        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all"
+      >
+        Edit
+      </button>
       <button
         onClick={onTags}
         className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-all"
@@ -71,7 +89,7 @@ function CampaignActions({
       </button>
       <Link
         href={`/campaigns/${c.id}`}
-        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all"
+        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
       >
         View
       </Link>
@@ -85,34 +103,310 @@ function CampaignActions({
   );
 }
 
+// Shared campaign form body used in both Create and Edit modals
+function CampaignFormBody({
+  form,
+  setForm,
+  selectedGroupIds,
+  setSelectedGroupIds,
+  selectedDays,
+  setSelectedDays,
+  monthDay,
+  setMonthDay,
+  groupDropdownOpen,
+  setGroupDropdownOpen,
+  templates,
+  groups,
+  waConnected,
+  waType,
+}: {
+  form: {
+    name: string;
+    template_id: string;
+    scheduled_at: string;
+    stop_at: string;
+    recurrence: string;
+  };
+  setForm: (f: any) => void;
+  selectedGroupIds: number[];
+  setSelectedGroupIds: (v: number[]) => void;
+  selectedDays: number[];
+  setSelectedDays: (v: number[]) => void;
+  monthDay: number;
+  setMonthDay: (v: number) => void;
+  groupDropdownOpen: boolean;
+  setGroupDropdownOpen: (v: boolean) => void;
+  templates: Template[];
+  groups: LeadGroup[];
+  waConnected: boolean;
+  waType: "qr" | "meta" | null;
+}) {
+  return (
+    <div className="space-y-4">
+      {/* Name */}
+      <div>
+        <label className={LABEL}>Campaign Name *</label>
+        <input
+          required
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="e.g. Diwali Offer 2024"
+          className={INPUT}
+        />
+      </div>
+
+      {/* Recurrence mode */}
+      <div>
+        <label className={LABEL}>Send Mode</label>
+        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+          {(["one_time", "daily", "weekly", "monthly"] as const).map((r) => {
+            const labels: Record<string, string> = {
+              one_time: "One Time",
+              daily: "Daily",
+              weekly: "Weekly",
+              monthly: "Monthly",
+            };
+            const active = form.recurrence === r;
+            return (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setForm({ ...form, recurrence: r })}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  active
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                }`}
+              >
+                {labels[r]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Template */}
+      <div>
+        <label className={LABEL}>
+          Template
+          {waConnected && waType && (
+            <span className="ml-2 font-normal text-indigo-500 dark:text-indigo-400 normal-case">
+              ({waType === "qr" ? "QR connected" : "Meta API connected"} — showing matching templates)
+            </span>
+          )}
+        </label>
+        <select
+          value={form.template_id}
+          onChange={(e) => setForm({ ...form, template_id: e.target.value })}
+          className={INPUT}
+        >
+          <option value="">Select a template</option>
+          {templates
+            .filter((t) => !waConnected || !waType || (t.connection_type ?? "qr") === waType)
+            .map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+        </select>
+        {waConnected &&
+          waType &&
+          templates.filter((t) => (t.connection_type ?? "qr") !== waType).length > 0 && (
+            <p className="text-xs text-gray-400 mt-1">
+              {templates.filter((t) => (t.connection_type ?? "qr") !== waType).length} template(s) hidden — not compatible with current connection.
+            </p>
+          )}
+      </div>
+
+      {/* Multi-group selector */}
+      <div className="relative">
+        <label className={LABEL}>Lead Groups</label>
+        <button
+          type="button"
+          onClick={() => setGroupDropdownOpen(!groupDropdownOpen)}
+          className={`${INPUT} flex items-center justify-between text-left`}
+        >
+          <span className={selectedGroupIds.length === 0 ? "text-gray-400 dark:text-gray-600" : ""}>
+            {selectedGroupIds.length === 0
+              ? "Select groups…"
+              : `${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? "s" : ""} selected`}
+          </span>
+          <svg
+            className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${groupDropdownOpen ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {groupDropdownOpen && (
+          <div className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+            <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+              {groups.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-gray-400">No groups yet</p>
+              ) : (
+                groups.map((g) => {
+                  const checked = selectedGroupIds.includes(g.id);
+                  return (
+                    <label
+                      key={g.id}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setSelectedGroupIds(
+                            checked
+                              ? selectedGroupIds.filter((id) => id !== g.id)
+                              : [...selectedGroupIds, g.id],
+                          );
+                        }}
+                        className="w-4 h-4 rounded accent-indigo-600"
+                      />
+                      <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">{g.name}</span>
+                      <span className="text-xs text-gray-400">{g.member_count} leads</span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            {selectedGroupIds.length > 0 && (
+              <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 border-t border-gray-100 dark:border-gray-800">
+                <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                  {selectedGroupIds.length} group{selectedGroupIds.length > 1 ? "s" : ""} selected ·{" "}
+                  {groups.filter((g) => selectedGroupIds.includes(g.id)).reduce((sum, g) => sum + g.member_count, 0)} leads total
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Weekly day picker */}
+      {form.recurrence === "weekly" && (
+        <div>
+          <label className={LABEL}>Days of Week</label>
+          <div className="flex gap-1.5 flex-wrap">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => {
+              const active = selectedDays.includes(i);
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() =>
+                    setSelectedDays(active ? selectedDays.filter((x) => x !== i) : [...selectedDays, i])
+                  }
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    active
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-400"
+                  }`}
+                >
+                  {d}
+                </button>
+              );
+            })}
+          </div>
+          {selectedDays.length === 0 && (
+            <p className="text-xs text-amber-500 mt-1">Select at least one day.</p>
+          )}
+        </div>
+      )}
+
+      {/* Monthly day-of-month picker */}
+      {form.recurrence === "monthly" && (
+        <div>
+          <label className={LABEL}>Day of Month</label>
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setMonthDay(d)}
+                className={`py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                  monthDay === d
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-400"
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Campaign runs on day {monthDay} of every month.</p>
+        </div>
+      )}
+
+      {/* Start Date */}
+      <div>
+        <label className={LABEL}>
+          {form.recurrence === "one_time" ? "Schedule" : "Start Date & Time"}
+        </label>
+        <input
+          type="datetime-local"
+          value={form.scheduled_at}
+          onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })}
+          className={INPUT}
+        />
+      </div>
+
+      {/* Stop Date (only for recurring) */}
+      {form.recurrence !== "one_time" && (
+        <div>
+          <label className={LABEL}>Stop Date (optional)</label>
+          <input
+            type="datetime-local"
+            value={form.stop_at}
+            onChange={(e) => setForm({ ...form, stop_at: e.target.value })}
+            className={INPUT}
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Campaign will stop running after this date.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [groups, setGroups] = useState<LeadGroup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState("");
-  const [confirmStartId, setConfirmStartId] = useState<number | null>(null);
-  const [confirmRerunId, setConfirmRerunId] = useState<number | null>(null);
   const [actionError, setActionError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [form, setForm] = useState({
-    name: "",
-    template_id: "",
-    scheduled_at: "",
-    recurrence: "one_time",
-  });
-  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
-  const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
   const [waType, setWaType] = useState<"qr" | "meta" | null>(null);
   const [waConnected, setWaConnected] = useState(false);
-  // Weekly day picker (0=Sun … 6=Sat)
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  // Monthly day of month (1-31)
-  const [monthDay, setMonthDay] = useState<number>(1);
-  // Tag system
+
+  // Create modal
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: "", template_id: "", scheduled_at: "", stop_at: "", recurrence: "one_time" });
+  const [createGroupIds, setCreateGroupIds] = useState<number[]>([]);
+  const [createGroupDropdown, setCreateGroupDropdown] = useState(false);
+  const [createDays, setCreateDays] = useState<number[]>([]);
+  const [createMonthDay, setCreateMonthDay] = useState(1);
+
+  // Edit modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [editCampaign, setEditCampaign] = useState<Campaign | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", template_id: "", scheduled_at: "", stop_at: "", recurrence: "one_time" });
+  const [editGroupIds, setEditGroupIds] = useState<number[]>([]);
+  const [editGroupDropdown, setEditGroupDropdown] = useState(false);
+  const [editDays, setEditDays] = useState<number[]>([]);
+  const [editMonthDay, setEditMonthDay] = useState(1);
+
+  // Confirm modals
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmStartId, setConfirmStartId] = useState<number | null>(null);
+  const [confirmStopId, setConfirmStopId] = useState<number | null>(null);
+
+  // Tags
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagsCampaign, setTagsCampaign] = useState<Campaign | null>(null);
   const [tagsValue, setTagsValue] = useState("");
@@ -140,50 +434,38 @@ export default function CampaignsPage() {
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
+  const buildRecurrenceConfig = (recurrence: string, days: number[], monthDay: number) => {
+    if (recurrence === "weekly" && days.length > 0) {
+      return JSON.stringify({ days: days.map((d) => DAY_NAMES[d]) });
+    }
+    if (recurrence === "monthly") {
+      return JSON.stringify({ day: monthDay });
+    }
+    return null;
+  };
+
+  // ── Create ──
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    let recurrence_config: string | null = null;
-    if (form.recurrence === "weekly" && selectedDays.length > 0) {
-      const dayNames = [
-        "sunday",
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-      ];
-      recurrence_config = JSON.stringify({
-        days: selectedDays.map((d) => dayNames[d]),
-      });
-    } else if (form.recurrence === "monthly") {
-      recurrence_config = JSON.stringify({ day: monthDay });
-    }
     try {
       await apiPost("/campaigns/", {
-        name: form.name,
-        template_id: form.template_id ? +form.template_id : null,
-        lead_group_id: selectedGroupIds[0] ?? null,
-        lead_group_ids: selectedGroupIds.length > 0 ? selectedGroupIds : null,
-        scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
-        recurrence: form.recurrence,
-        recurrence_config,
+        name: createForm.name,
+        template_id: createForm.template_id ? +createForm.template_id : null,
+        lead_group_id: createGroupIds[0] ?? null,
+        lead_group_ids: createGroupIds.length > 0 ? createGroupIds : null,
+        scheduled_at: createForm.scheduled_at ? new Date(createForm.scheduled_at).toISOString() : null,
+        stop_at: createForm.stop_at ? new Date(createForm.stop_at).toISOString() : null,
+        recurrence: createForm.recurrence,
+        recurrence_config: buildRecurrenceConfig(createForm.recurrence, createDays, createMonthDay),
       });
-      setOpen(false);
-      setForm({
-        name: "",
-        template_id: "",
-        scheduled_at: "",
-        recurrence: "one_time",
-      });
-      setSelectedGroupIds([]);
-      setSelectedDays([]);
-      setMonthDay(1);
+      setCreateOpen(false);
+      setCreateForm({ name: "", template_id: "", scheduled_at: "", stop_at: "", recurrence: "one_time" });
+      setCreateGroupIds([]);
+      setCreateDays([]);
+      setCreateMonthDay(1);
       load();
     } catch (err: any) {
       alert(err.message);
@@ -192,15 +474,67 @@ export default function CampaignsPage() {
     }
   };
 
+  // ── Edit ──
+  const openEdit = (c: Campaign) => {
+    let parsedDays: number[] = [];
+    let parsedMonthDay = 1;
+    if (c.recurrence_config) {
+      try {
+        const cfg = JSON.parse(c.recurrence_config);
+        if (cfg.days) parsedDays = cfg.days.map((d: string) => DAY_NAMES.indexOf(d)).filter((d: number) => d >= 0);
+        if (cfg.day) parsedMonthDay = cfg.day;
+      } catch {}
+    }
+    setEditCampaign(c);
+    setEditForm({
+      name: c.name,
+      template_id: c.template_id ? String(c.template_id) : "",
+      scheduled_at: toLocalInput(c.scheduled_at),
+      stop_at: toLocalInput(c.stop_at),
+      recurrence: c.recurrence || "one_time",
+    });
+    setEditGroupIds(c.lead_group_ids || (c.lead_group_id ? [c.lead_group_id] : []));
+    setEditDays(parsedDays);
+    setEditMonthDay(parsedMonthDay);
+    setEditGroupDropdown(false);
+    setEditOpen(true);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editCampaign) return;
+    setSaving(true);
+    try {
+      await apiPut(`/campaigns/${editCampaign.id}`, {
+        name: editForm.name,
+        template_id: editForm.template_id ? +editForm.template_id : null,
+        lead_group_id: editGroupIds[0] ?? null,
+        lead_group_ids: editGroupIds.length > 0 ? editGroupIds : null,
+        scheduled_at: editForm.scheduled_at ? new Date(editForm.scheduled_at).toISOString() : null,
+        stop_at: editForm.stop_at ? new Date(editForm.stop_at).toISOString() : null,
+        recurrence: editForm.recurrence,
+        recurrence_config: buildRecurrenceConfig(editForm.recurrence, editDays, editMonthDay),
+      });
+      setEditOpen(false);
+      setEditCampaign(null);
+      setSuccessMsg("Campaign updated.");
+      setTimeout(() => setSuccessMsg(""), 4000);
+      load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Start ──
   const handleStart = async () => {
     if (!confirmStartId) return;
     setActionError("");
     try {
       await apiPost(`/campaigns/${confirmStartId}/start`);
       setConfirmStartId(null);
-      setSuccessMsg(
-        "Campaign started! Messages are being sent in the background.",
-      );
+      setSuccessMsg("Campaign started! Messages are being sent in the background.");
       setTimeout(() => setSuccessMsg(""), 5000);
       load();
     } catch (err: any) {
@@ -208,22 +542,22 @@ export default function CampaignsPage() {
     }
   };
 
-  const handleRerun = async () => {
-    if (!confirmRerunId) return;
+  // ── Stop ──
+  const handleStop = async () => {
+    if (!confirmStopId) return;
     setActionError("");
     try {
-      await apiPost(`/campaigns/${confirmRerunId}/rerun`);
-      setConfirmRerunId(null);
-      setSuccessMsg(
-        "Campaign rerun started! Messages are being sent in the background.",
-      );
-      setTimeout(() => setSuccessMsg(""), 5000);
+      await apiPost(`/campaigns/${confirmStopId}/stop`);
+      setConfirmStopId(null);
+      setSuccessMsg("Campaign stopped.");
+      setTimeout(() => setSuccessMsg(""), 4000);
       load();
     } catch (err: any) {
       setActionError(err.message);
     }
   };
 
+  // ── Duplicate ──
   const handleDuplicate = async (id: number) => {
     try {
       await apiPost(`/campaigns/${id}/duplicate`);
@@ -235,6 +569,7 @@ export default function CampaignsPage() {
     }
   };
 
+  // ── Delete ──
   const handleDelete = async (id: number) => {
     setDeleteError("");
     try {
@@ -246,14 +581,10 @@ export default function CampaignsPage() {
     }
   };
 
-  // Derived: all unique tags across campaigns
   const allTags = Array.from(
     new Set(
       campaigns.flatMap((c) =>
-        (c.tags ?? "")
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
+        (c.tags ?? "").split(",").map((s) => s.trim()).filter(Boolean),
       ),
     ),
   ).sort();
@@ -263,9 +594,7 @@ export default function CampaignsPage() {
     if (!tagsCampaign) return;
     setTagsSaving(true);
     try {
-      await apiPut(`/campaigns/${tagsCampaign.id}`, {
-        tags: tagsValue || null,
-      });
+      await apiPut(`/campaigns/${tagsCampaign.id}`, { tags: tagsValue || null });
       setTagsOpen(false);
       load();
     } catch (err: any) {
@@ -275,14 +604,8 @@ export default function CampaignsPage() {
     }
   };
 
-  const handleRemoveTagFromCampaign = async (
-    campaign: Campaign,
-    tag: string,
-  ) => {
-    const current = (campaign.tags ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+  const handleRemoveTagFromCampaign = async (campaign: Campaign, tag: string) => {
+    const current = (campaign.tags ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     const updated = current.filter((t) => t !== tag).join(", ") || null;
     try {
       await apiPut(`/campaigns/${campaign.id}`, { tags: updated });
@@ -292,14 +615,22 @@ export default function CampaignsPage() {
     }
   };
 
+  const actionProps = (c: Campaign) => ({
+    c,
+    onStart: () => { setActionError(""); setConfirmStartId(c.id); },
+    onStop: () => { setActionError(""); setConfirmStopId(c.id); },
+    onEdit: () => openEdit(c),
+    onDuplicate: () => handleDuplicate(c.id),
+    onDelete: () => { setDeleteError(""); setConfirmDeleteId(c.id); },
+    onTags: () => { setTagsCampaign(c); setTagsValue(c.tags ?? ""); setTagsOpen(true); },
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-            Campaigns
-          </h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Campaigns</h1>
           <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
             Create and manage your WhatsApp campaigns
           </p>
@@ -307,41 +638,18 @@ export default function CampaignsPage() {
         <div className="flex items-center gap-2">
           {allTags.length > 0 && (
             <button
-              onClick={() => {
-                setTagMgmtOpen(true);
-                setSelectedTag(allTags[0]);
-              }}
+              onClick={() => { setTagMgmtOpen(true); setSelectedTag(allTags[0]); }}
               className={BTN_GHOST}
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
-                />
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
               </svg>
               <span className="hidden sm:inline">Manage Tags</span>
             </button>
           )}
-          <button onClick={() => setOpen(true)} className={BTN_PRIMARY}>
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4v16m8-8H4"
-              />
+          <button onClick={() => setCreateOpen(true)} className={BTN_PRIMARY}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             <span className="hidden sm:inline">New Campaign</span>
             <span className="sm:hidden">New</span>
@@ -349,44 +657,28 @@ export default function CampaignsPage() {
         </div>
       </div>
 
-      {/* Success banner */}
+      {/* Banners */}
       {successMsg && (
         <div className="px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-700 dark:text-emerald-400 flex items-center justify-between">
           <span>✓ {successMsg}</span>
-          <button
-            onClick={() => setSuccessMsg("")}
-            className="text-emerald-400 hover:text-emerald-600 ml-4"
-          >
-            ✕
-          </button>
+          <button onClick={() => setSuccessMsg("")} className="text-emerald-400 hover:text-emerald-600 ml-4">✕</button>
         </div>
       )}
       {deleteError && (
         <div className="px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-600 dark:text-red-400 flex items-center justify-between">
           <span>{deleteError}</span>
-          <button
-            onClick={() => setDeleteError("")}
-            className="text-red-400 hover:text-red-600 ml-4"
-          >
-            ✕
-          </button>
+          <button onClick={() => setDeleteError("")} className="text-red-400 hover:text-red-600 ml-4">✕</button>
         </div>
       )}
 
       {loading ? (
-        <div className="flex justify-center py-24">
-          <Spinner />
-        </div>
+        <div className="flex justify-center py-24"><Spinner /></div>
       ) : campaigns.length === 0 ? (
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
           <EmptyState
             title="No campaigns yet"
             description="Create your first campaign to start reaching your leads."
-            action={
-              <button onClick={() => setOpen(true)} className={BTN_PRIMARY}>
-                Create Campaign
-              </button>
-            }
+            action={<button onClick={() => setCreateOpen(true)} className={BTN_PRIMARY}>Create Campaign</button>}
           />
         </div>
       ) : (
@@ -396,15 +688,7 @@ export default function CampaignsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800/60">
                 <tr>
-                  {[
-                    "Campaign",
-                    "Template",
-                    "Group",
-                    "Scheduled",
-                    "Status",
-                    "Sent",
-                    "",
-                  ].map((h) => (
+                  {["Campaign", "Template", "Group", "Scheduled", "Stop Date", "Status", "Sent", ""].map((h) => (
                     <th
                       key={h}
                       className={`text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider first:rounded-tl-2xl last:rounded-tr-2xl ${h === "" ? "w-px" : ""}`}
@@ -416,10 +700,7 @@ export default function CampaignsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {campaigns.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors"
-                  >
+                  <tr key={c.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors">
                     <td className="px-4 py-3">
                       <Link
                         href={`/campaigns/${c.id}`}
@@ -429,64 +710,27 @@ export default function CampaignsPage() {
                       </Link>
                       {c.tags && (
                         <div className="flex gap-1 flex-wrap mt-1">
-                          {c.tags
-                            .split(",")
-                            .map((t) => t.trim())
-                            .filter(Boolean)
-                            .map((tag) => (
-                              <span
-                                key={tag}
-                                className="text-xs px-1.5 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800"
-                              >
-                                {tag}
-                              </span>
-                            ))}
+                          {c.tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
+                            <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800">
+                              {tag}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                      {c.template_name || "—"}
-                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{c.template_name || "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                       {c.lead_group_names && c.lead_group_names.length > 1
                         ? `${c.lead_group_names.length} groups`
                         : c.lead_group_name || "—"}
                     </td>
-                    <td
-                      suppressHydrationWarning
-                      className="px-4 py-3 text-gray-400 dark:text-gray-500 text-xs"
-                    >
-                      {fmt(c.scheduled_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge label={c.status} />
-                    </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
-                      {c.messages_sent ?? 0}
-                    </td>
+                    <td suppressHydrationWarning className="px-4 py-3 text-gray-400 dark:text-gray-500 text-xs">{fmt(c.scheduled_at)}</td>
+                    <td suppressHydrationWarning className="px-4 py-3 text-gray-400 dark:text-gray-500 text-xs">{c.stop_at ? fmt(c.stop_at) : "—"}</td>
+                    <td className="px-4 py-3"><Badge label={c.status} /></td>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">{c.messages_sent ?? 0}</td>
                     <td className="px-4 py-3 w-px whitespace-nowrap">
                       <div className="flex items-center justify-end">
-                        <CampaignActions
-                          c={c}
-                          onStart={() => {
-                            setActionError("");
-                            setConfirmStartId(c.id);
-                          }}
-                          onRerun={() => {
-                            setActionError("");
-                            setConfirmRerunId(c.id);
-                          }}
-                          onDuplicate={() => handleDuplicate(c.id)}
-                          onDelete={() => {
-                            setDeleteError("");
-                            setConfirmDeleteId(c.id);
-                          }}
-                          onTags={() => {
-                            setTagsCampaign(c);
-                            setTagsValue(c.tags ?? "");
-                            setTagsOpen(true);
-                          }}
-                        />
+                        <CampaignActions {...actionProps(c)} />
                       </div>
                     </td>
                   </tr>
@@ -498,10 +742,7 @@ export default function CampaignsPage() {
           {/* ── Mobile cards ── */}
           <div className="md:hidden space-y-3">
             {campaigns.map((c) => (
-              <div
-                key={c.id}
-                className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 space-y-3"
-              >
+              <div key={c.id} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <Link
@@ -519,93 +760,98 @@ export default function CampaignsPage() {
                   </div>
                   <Badge label={c.status} />
                 </div>
-
                 {c.tags && (
                   <div className="flex gap-1 flex-wrap">
-                    {c.tags
-                      .split(",")
-                      .map((t) => t.trim())
-                      .filter(Boolean)
-                      .map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs px-1.5 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                    {c.tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
+                      <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800">
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 )}
-
                 <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                   <span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {c.messages_sent ?? 0}
-                    </span>{" "}
-                    sent
-                    {(c.messages_failed ?? 0) > 0 && (
-                      <span className="text-red-500 ml-1">
-                        · {c.messages_failed} failed
-                      </span>
-                    )}
+                    <span className="font-semibold text-gray-900 dark:text-white">{c.messages_sent ?? 0}</span> sent
+                    {(c.messages_failed ?? 0) > 0 && <span className="text-red-500 ml-1">· {c.messages_failed} failed</span>}
                   </span>
-                  {c.scheduled_at && (
-                    <span suppressHydrationWarning className="truncate">
-                      {fmt(c.scheduled_at)}
-                    </span>
-                  )}
+                  {c.scheduled_at && <span suppressHydrationWarning className="truncate">{fmt(c.scheduled_at)}</span>}
                 </div>
-
-                <CampaignActions
-                  c={c}
-                  onStart={() => {
-                    setActionError("");
-                    setConfirmStartId(c.id);
-                  }}
-                  onRerun={() => {
-                    setActionError("");
-                    setConfirmRerunId(c.id);
-                  }}
-                  onDuplicate={() => handleDuplicate(c.id)}
-                  onDelete={() => {
-                    setDeleteError("");
-                    setConfirmDeleteId(c.id);
-                  }}
-                  onTags={() => {
-                    setTagsCampaign(c);
-                    setTagsValue(c.tags ?? "");
-                    setTagsOpen(true);
-                  }}
-                />
+                <CampaignActions {...actionProps(c)} />
               </div>
             ))}
           </div>
         </>
       )}
 
-      {/* ── Start Campaign Confirm Modal ── */}
-      <Modal
-        open={confirmStartId !== null}
-        onClose={() => setConfirmStartId(null)}
-        title="Start Campaign"
-      >
+      {/* ── Create Campaign Modal ── */}
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setCreateGroupDropdown(false); }} title="New Campaign" wide>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div className="overflow-y-auto max-h-[65vh] pr-1">
+            <CampaignFormBody
+              form={createForm}
+              setForm={setCreateForm}
+              selectedGroupIds={createGroupIds}
+              setSelectedGroupIds={setCreateGroupIds}
+              selectedDays={createDays}
+              setSelectedDays={setCreateDays}
+              monthDay={createMonthDay}
+              setMonthDay={setCreateMonthDay}
+              groupDropdownOpen={createGroupDropdown}
+              setGroupDropdownOpen={setCreateGroupDropdown}
+              templates={templates}
+              groups={groups}
+              waConnected={waConnected}
+              waType={waType}
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={() => setCreateOpen(false)} className={`${BTN_GHOST} flex-1`}>Cancel</button>
+            <button type="submit" disabled={saving} className={`${BTN_PRIMARY} flex-1`}>
+              {saving && <Spinner className="text-white" />}Create
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Edit Campaign Modal ── */}
+      <Modal open={editOpen} onClose={() => { setEditOpen(false); setEditCampaign(null); setEditGroupDropdown(false); }} title="Edit Campaign" wide>
+        <form onSubmit={handleEdit} className="space-y-4">
+          <div className="overflow-y-auto max-h-[65vh] pr-1">
+            <CampaignFormBody
+              form={editForm}
+              setForm={setEditForm}
+              selectedGroupIds={editGroupIds}
+              setSelectedGroupIds={setEditGroupIds}
+              selectedDays={editDays}
+              setSelectedDays={setEditDays}
+              monthDay={editMonthDay}
+              setMonthDay={setEditMonthDay}
+              groupDropdownOpen={editGroupDropdown}
+              setGroupDropdownOpen={setEditGroupDropdown}
+              templates={templates}
+              groups={groups}
+              waConnected={waConnected}
+              waType={waType}
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={() => { setEditOpen(false); setEditCampaign(null); }} className={`${BTN_GHOST} flex-1`}>Cancel</button>
+            <button type="submit" disabled={saving} className={`${BTN_PRIMARY} flex-1`}>
+              {saving && <Spinner className="text-white" />}Save Changes
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Start Confirm Modal ── */}
+      <Modal open={confirmStartId !== null} onClose={() => setConfirmStartId(null)} title="Start Campaign">
         <div className="space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            This will immediately send messages to all leads in the selected
-            group. Make sure your WhatsApp is connected first.
+            This will immediately send messages to all leads in the selected group. Make sure your WhatsApp is connected first.
           </p>
-          {actionError && (
-            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
-              {actionError}
-            </p>
-          )}
+          {actionError && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{actionError}</p>}
           <div className="flex gap-3 pt-1">
-            <button
-              onClick={() => setConfirmStartId(null)}
-              className={`${BTN_GHOST} flex-1`}
-            >
-              Cancel
-            </button>
+            <button onClick={() => setConfirmStartId(null)} className={`${BTN_GHOST} flex-1`}>Cancel</button>
             <button
               onClick={handleStart}
               className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all"
@@ -616,66 +862,36 @@ export default function CampaignsPage() {
         </div>
       </Modal>
 
-      {/* ── Rerun Campaign Confirm Modal ── */}
-      <Modal
-        open={confirmRerunId !== null}
-        onClose={() => setConfirmRerunId(null)}
-        title="Rerun Campaign"
-      >
+      {/* ── Stop Confirm Modal ── */}
+      <Modal open={confirmStopId !== null} onClose={() => setConfirmStopId(null)} title="Stop Campaign">
         <div className="space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            This will clear previous message logs and resend messages to all
-            leads in the group. Are you sure?
+            This will stop the campaign. It will be moved back to draft status and can be restarted later.
           </p>
-          {actionError && (
-            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
-              {actionError}
-            </p>
-          )}
+          {actionError && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{actionError}</p>}
           <div className="flex gap-3 pt-1">
+            <button onClick={() => setConfirmStopId(null)} className={`${BTN_GHOST} flex-1`}>Cancel</button>
             <button
-              onClick={() => setConfirmRerunId(null)}
-              className={`${BTN_GHOST} flex-1`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleRerun}
+              onClick={handleStop}
               className="flex-1 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all"
             >
-              Yes, Rerun
+              Yes, Stop
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* ── Delete Campaign Confirm Modal ── */}
-      <Modal
-        open={confirmDeleteId !== null}
-        onClose={() => setConfirmDeleteId(null)}
-        title="Delete Campaign"
-      >
+      {/* ── Delete Confirm Modal ── */}
+      <Modal open={confirmDeleteId !== null} onClose={() => setConfirmDeleteId(null)} title="Delete Campaign">
         <div className="space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Are you sure you want to delete this campaign? All message logs will
-            also be deleted.
+            Are you sure you want to delete this campaign? All message logs will also be deleted.
           </p>
-          {deleteError && (
-            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
-              {deleteError}
-            </p>
-          )}
+          {deleteError && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{deleteError}</p>}
           <div className="flex gap-3 pt-1">
+            <button onClick={() => setConfirmDeleteId(null)} className={`${BTN_GHOST} flex-1`}>Cancel</button>
             <button
-              onClick={() => setConfirmDeleteId(null)}
-              className={`${BTN_GHOST} flex-1`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                if (confirmDeleteId) handleDelete(confirmDeleteId);
-              }}
+              onClick={() => { if (confirmDeleteId) handleDelete(confirmDeleteId); }}
               className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all"
             >
               Delete
@@ -684,322 +900,12 @@ export default function CampaignsPage() {
         </div>
       </Modal>
 
-      {/* ── New Campaign Modal ── */}
-      <Modal
-        open={open}
-        onClose={() => {
-          setOpen(false);
-          setGroupDropdownOpen(false);
-          setSelectedDays([]);
-          setMonthDay(1);
-        }}
-        title="New Campaign"
-      >
-        <form onSubmit={handleCreate} className="space-y-4">
-          {/* Name */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-              Campaign Name *
-            </label>
-            <input
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Diwali Offer 2024"
-              className={INPUT}
-            />
-          </div>
-
-          {/* Recurrence mode */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-              Send Mode
-            </label>
-            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
-              {(["one_time", "daily", "weekly", "monthly"] as const).map(
-                (r) => {
-                  const labels: Record<string, string> = {
-                    one_time: "One Time",
-                    daily: "Daily",
-                    weekly: "Weekly",
-                    monthly: "Monthly",
-                  };
-                  const active = form.recurrence === r;
-                  return (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setForm({ ...form, recurrence: r })}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                        active
-                          ? "bg-indigo-600 text-white shadow-sm"
-                          : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                      }`}
-                    >
-                      {labels[r]}
-                    </button>
-                  );
-                },
-              )}
-            </div>
-          </div>
-
-          {/* Template — filtered by active WA connection type */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-              Template
-              {waConnected && waType && (
-                <span className="ml-2 font-normal text-indigo-500 dark:text-indigo-400 normal-case">
-                  ({waType === "qr" ? "QR connected" : "Meta API connected"} —
-                  showing matching templates)
-                </span>
-              )}
-            </label>
-            <select
-              value={form.template_id}
-              onChange={(e) =>
-                setForm({ ...form, template_id: e.target.value })
-              }
-              className={INPUT}
-            >
-              <option value="">Select a template</option>
-              {templates
-                .filter(
-                  (t) =>
-                    !waConnected ||
-                    !waType ||
-                    (t.connection_type ?? "qr") === waType,
-                )
-                .map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-            </select>
-            {waConnected &&
-              waType &&
-              templates.filter((t) => (t.connection_type ?? "qr") !== waType)
-                .length > 0 && (
-                <p className="text-xs text-gray-400 mt-1">
-                  {
-                    templates.filter(
-                      (t) => (t.connection_type ?? "qr") !== waType,
-                    ).length
-                  }{" "}
-                  template(s) hidden — not compatible with current connection.
-                </p>
-              )}
-          </div>
-
-          {/* Multi-group selector */}
-          <div className="relative">
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-              Lead Groups
-            </label>
-            <button
-              type="button"
-              onClick={() => setGroupDropdownOpen((v) => !v)}
-              className={`${INPUT} flex items-center justify-between text-left`}
-            >
-              <span
-                className={
-                  selectedGroupIds.length === 0
-                    ? "text-gray-400 dark:text-gray-600"
-                    : ""
-                }
-              >
-                {selectedGroupIds.length === 0
-                  ? "Select groups…"
-                  : `${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? "s" : ""} selected`}
-              </span>
-              <svg
-                className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${groupDropdownOpen ? "rotate-180" : ""}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-
-            {groupDropdownOpen && (
-              <div className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
-                <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
-                  {groups.length === 0 ? (
-                    <p className="px-4 py-3 text-sm text-gray-400">
-                      No groups yet
-                    </p>
-                  ) : (
-                    groups.map((g) => {
-                      const checked = selectedGroupIds.includes(g.id);
-                      return (
-                        <label
-                          key={g.id}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => {
-                              setSelectedGroupIds((prev) =>
-                                checked
-                                  ? prev.filter((id) => id !== g.id)
-                                  : [...prev, g.id],
-                              );
-                            }}
-                            className="w-4 h-4 rounded accent-indigo-600"
-                          />
-                          <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
-                            {g.name}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {g.member_count} leads
-                          </span>
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
-                {selectedGroupIds.length > 0 && (
-                  <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 border-t border-gray-100 dark:border-gray-800">
-                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                      {selectedGroupIds.length} group
-                      {selectedGroupIds.length > 1 ? "s" : ""} selected ·{" "}
-                      {groups
-                        .filter((g) => selectedGroupIds.includes(g.id))
-                        .reduce((sum, g) => sum + g.member_count, 0)}{" "}
-                      leads total
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Weekly day picker */}
-          {form.recurrence === "weekly" && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-                Days of Week
-              </label>
-              <div className="flex gap-1.5 flex-wrap">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                  (d, i) => {
-                    const active = selectedDays.includes(i);
-                    return (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() =>
-                          setSelectedDays((prev) =>
-                            active ? prev.filter((x) => x !== i) : [...prev, i],
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                          active
-                            ? "bg-indigo-600 text-white border-indigo-600"
-                            : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-400"
-                        }`}
-                      >
-                        {d}
-                      </button>
-                    );
-                  },
-                )}
-              </div>
-              {selectedDays.length === 0 && (
-                <p className="text-xs text-amber-500 mt-1">
-                  Select at least one day.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Monthly day-of-month picker */}
-          {form.recurrence === "monthly" && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-                Day of Month
-              </label>
-              <div className="grid grid-cols-7 gap-1">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setMonthDay(d)}
-                    className={`py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                      monthDay === d
-                        ? "bg-indigo-600 text-white border-indigo-600"
-                        : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-400"
-                    }`}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Campaign runs on day {monthDay} of every month.
-              </p>
-            </div>
-          )}
-
-          {/* Schedule */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-              {form.recurrence === "one_time"
-                ? "Schedule"
-                : "Start Date & Time"}
-            </label>
-            <input
-              type="datetime-local"
-              value={form.scheduled_at}
-              onChange={(e) =>
-                setForm({ ...form, scheduled_at: e.target.value })
-              }
-              className={INPUT}
-            />
-          </div>
-
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                setGroupDropdownOpen(false);
-              }}
-              className={`${BTN_GHOST} flex-1`}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className={`${BTN_PRIMARY} flex-1`}
-            >
-              {saving && <Spinner className="text-white" />}Create
-            </button>
-          </div>
-        </form>
-      </Modal>
-
       {/* ── Quick Tags Modal ── */}
-      <Modal
-        open={tagsOpen}
-        onClose={() => setTagsOpen(false)}
-        title="Edit Tags"
-      >
+      <Modal open={tagsOpen} onClose={() => setTagsOpen(false)} title="Edit Tags">
         <form onSubmit={handleSaveTags} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-              Tags for{" "}
-              <span className="text-gray-700 dark:text-gray-300">
-                {tagsCampaign?.name}
-              </span>
+            <label className={LABEL}>
+              Tags for <span className="text-gray-700 dark:text-gray-300">{tagsCampaign?.name}</span>
             </label>
             <input
               value={tagsValue}
@@ -1008,35 +914,21 @@ export default function CampaignsPage() {
               className={INPUT}
               autoFocus
             />
-            <p className="text-xs text-gray-400 mt-1">
-              Comma-separated. Used for personal organisation only.
-            </p>
+            <p className="text-xs text-gray-400 mt-1">Comma-separated. Used for personal organisation only.</p>
           </div>
-          {/* Existing tags as clickable suggestions */}
           {(() => {
-            const currentTags = new Set(
-              tagsValue
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
-            );
+            const currentTags = new Set(tagsValue.split(",").map((s) => s.trim()).filter(Boolean));
             const suggestions = allTags.filter((t) => !currentTags.has(t));
             if (suggestions.length === 0) return null;
             return (
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-                  Existing Tags
-                </p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Existing Tags</p>
                 <div className="flex gap-1.5 flex-wrap">
                   {suggestions.map((tag) => (
                     <button
                       key={tag}
                       type="button"
-                      onClick={() =>
-                        setTagsValue((prev) =>
-                          prev.trim() ? `${prev.trim()}, ${tag}` : tag,
-                        )
-                      }
+                      onClick={() => setTagsValue((prev) => prev.trim() ? `${prev.trim()}, ${tag}` : tag)}
                       className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-700 transition-colors"
                     >
                       + {tag}
@@ -1048,64 +940,33 @@ export default function CampaignsPage() {
           })()}
           {tagsValue && (
             <div className="flex gap-1.5 flex-wrap">
-              {tagsValue
-                .split(",")
-                .map((tag) => tag.trim())
-                .filter(Boolean)
-                .map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800 font-medium"
-                  >
-                    {tag}
-                  </span>
-                ))}
+              {tagsValue.split(",").map((tag) => tag.trim()).filter(Boolean).map((tag) => (
+                <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800 font-medium">
+                  {tag}
+                </span>
+              ))}
             </div>
           )}
           <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => setTagsOpen(false)}
-              className={`${BTN_GHOST} flex-1`}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={tagsSaving}
-              className={`${BTN_PRIMARY} flex-1`}
-            >
-              {tagsSaving && <Spinner className="text-white" />}
-              Save Tags
+            <button type="button" onClick={() => setTagsOpen(false)} className={`${BTN_GHOST} flex-1`}>Cancel</button>
+            <button type="submit" disabled={tagsSaving} className={`${BTN_PRIMARY} flex-1`}>
+              {tagsSaving && <Spinner className="text-white" />}Save Tags
             </button>
           </div>
         </form>
       </Modal>
 
       {/* ── Tag Management Modal ── */}
-      <Modal
-        open={tagMgmtOpen}
-        onClose={() => setTagMgmtOpen(false)}
-        wide
-        title="Manage Tags"
-      >
+      <Modal open={tagMgmtOpen} onClose={() => setTagMgmtOpen(false)} wide title="Manage Tags">
         <div className="flex gap-5 min-h-[50vh]">
-          {/* Left: tag list */}
           <div className="w-48 shrink-0 border-r border-gray-100 dark:border-gray-800 pr-4 space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-              All Tags
-            </p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">All Tags</p>
             {allTags.length === 0 && (
-              <p className="text-xs text-gray-400">
-                No tags yet. Add tags using the Tags button on a campaign.
-              </p>
+              <p className="text-xs text-gray-400">No tags yet. Add tags using the Tags button on a campaign.</p>
             )}
             {allTags.map((tag) => {
               const count = campaigns.filter((c) =>
-                (c.tags ?? "")
-                  .split(",")
-                  .map((s) => s.trim())
-                  .includes(tag),
+                (c.tags ?? "").split(",").map((s) => s.trim()).includes(tag),
               ).length;
               return (
                 <button
@@ -1118,62 +979,34 @@ export default function CampaignsPage() {
                   }`}
                 >
                   <span className="truncate">{tag}</span>
-                  <span
-                    className={`text-xs ml-1 shrink-0 ${selectedTag === tag ? "text-violet-200" : "text-gray-400"}`}
-                  >
-                    {count}
-                  </span>
+                  <span className={`text-xs ml-1 shrink-0 ${selectedTag === tag ? "text-violet-200" : "text-gray-400"}`}>{count}</span>
                 </button>
               );
             })}
           </div>
-
-          {/* Right: campaigns under selected tag */}
           <div className="flex-1 min-w-0">
             {selectedTag ? (
               <>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                  Campaigns tagged{" "}
-                  <span className="text-violet-600 dark:text-violet-400">
-                    {selectedTag}
-                  </span>
+                  Campaigns tagged <span className="text-violet-600 dark:text-violet-400">{selectedTag}</span>
                 </p>
                 <div className="space-y-2">
                   {campaigns
-                    .filter((c) =>
-                      (c.tags ?? "")
-                        .split(",")
-                        .map((s) => s.trim())
-                        .includes(selectedTag),
-                    )
+                    .filter((c) => (c.tags ?? "").split(",").map((s) => s.trim()).includes(selectedTag))
                     .map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60"
-                      >
+                      <div key={c.id} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {c.name}
-                          </p>
-                          <p className="text-xs text-gray-400 truncate">
-                            {c.template_name || "No template"}
-                          </p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</p>
+                          <p className="text-xs text-gray-400 truncate">{c.template_name || "No template"}</p>
                         </div>
                         <button
                           onClick={async () => {
                             await handleRemoveTagFromCampaign(c, selectedTag);
                             const remaining = campaigns.filter(
-                              (x) =>
-                                x.id !== c.id &&
-                                (x.tags ?? "")
-                                  .split(",")
-                                  .map((s) => s.trim())
-                                  .includes(selectedTag),
+                              (x) => x.id !== c.id && (x.tags ?? "").split(",").map((s) => s.trim()).includes(selectedTag),
                             );
                             if (remaining.length === 0) {
-                              const next =
-                                allTags.filter((t) => t !== selectedTag)[0] ??
-                                null;
+                              const next = allTags.filter((t) => t !== selectedTag)[0] ?? null;
                               setSelectedTag(next);
                               if (!next) setTagMgmtOpen(false);
                             }
@@ -1187,9 +1020,7 @@ export default function CampaignsPage() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-gray-400 mt-4">
-                Select a tag to see campaigns.
-              </p>
+              <p className="text-sm text-gray-400 mt-4">Select a tag to see campaigns.</p>
             )}
           </div>
         </div>

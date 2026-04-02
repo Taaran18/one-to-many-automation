@@ -51,6 +51,7 @@ export interface Campaign {
   lead_group_ids?: number[];
   status: "draft" | "scheduled" | "running" | "completed" | "failed";
   scheduled_at?: string;
+  stop_at?: string;
   created_at?: string;
   recurrence?: string;
   recurrence_config?: string;

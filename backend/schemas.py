@@ -182,6 +182,7 @@ class CampaignCreate(BaseModel):
     lead_group_id: Optional[int] = None
     lead_group_ids: Optional[List[int]] = None
     scheduled_at: Optional[datetime] = None
+    stop_at: Optional[datetime] = None
     recurrence: Optional[str] = "one_time"
     recurrence_config: Optional[str] = None
     tags: Optional[str] = None
@@ -193,6 +194,7 @@ class CampaignUpdate(BaseModel):
     lead_group_id: Optional[int] = None
     lead_group_ids: Optional[List[int]] = None
     scheduled_at: Optional[datetime] = None
+    stop_at: Optional[datetime] = None
     recurrence: Optional[str] = None
     recurrence_config: Optional[str] = None
     tags: Optional[str] = None
@@ -207,6 +209,7 @@ class CampaignResponse(BaseModel):
     lead_group_ids: Optional[List[int]] = None
     status: str
     scheduled_at: Optional[datetime] = None
+    stop_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     recurrence: Optional[str] = "one_time"
     recurrence_config: Optional[str] = None

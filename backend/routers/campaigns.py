@@ -224,6 +224,7 @@ def create_campaign(
         lead_group_id=primary_group_id,
         lead_group_ids=json.dumps(all_group_ids) if all_group_ids else None,
         scheduled_at=campaign.scheduled_at,
+        stop_at=campaign.stop_at,
         recurrence=campaign.recurrence or "one_time",
         recurrence_config=campaign.recurrence_config,
         tags=campaign.tags,
@@ -371,6 +372,27 @@ def rerun_campaign(
     return {"success": True, "message": "Campaign rerun started"}
 
 
+@router.post("/{campaign_id}/stop")
+def stop_campaign(
+    campaign_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    c = (
+        db.query(models.Campaign)
+        .filter(
+            models.Campaign.id == campaign_id,
+            models.Campaign.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not c:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    c.status = "draft"
+    db.commit()
+    return {"success": True, "message": "Campaign stopped"}
+
+
 @router.post("/{campaign_id}/duplicate", response_model=schemas.CampaignResponse)
 def duplicate_campaign(
     campaign_id: int,
@@ -491,6 +513,7 @@ def _build_response(c: models.Campaign, db: Session) -> schemas.CampaignResponse
         lead_group_ids=group_ids or None,
         status=c.status,
         scheduled_at=c.scheduled_at,
+        stop_at=c.stop_at,
         created_at=c.created_at,
         recurrence=c.recurrence or "one_time",
         recurrence_config=c.recurrence_config,
