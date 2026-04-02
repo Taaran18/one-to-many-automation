@@ -3,12 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
+from contextlib import asynccontextmanager
 from datetime import timedelta
 import os, uuid, shutil
 
 import models, schemas, auth
 from database import engine, get_db
 from routers import leads, templates, campaigns, dashboard, whatsapp
+from scheduler import check_scheduled_campaigns
 
 os.makedirs("uploads", exist_ok=True)
 
@@ -17,7 +19,20 @@ try:
 except Exception as e:
     pass
 
-app = FastAPI(title="OneToMany Automation API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from apscheduler.schedulers.background import BackgroundScheduler
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(check_scheduled_campaigns, "interval", minutes=1, id="campaign_scheduler")
+    scheduler.start()
+    print("[scheduler] Campaign scheduler started — checking every 60s")
+    yield
+    scheduler.shutdown(wait=False)
+    print("[scheduler] Campaign scheduler stopped")
+
+
+app = FastAPI(title="OneToMany Automation API", lifespan=lifespan)
 
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
@@ -32,7 +47,7 @@ app.add_middleware(
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# ─── Register Routers ─────────────────────────────────────────────────────────
+# Register Routers
 app.include_router(leads.router)
 app.include_router(templates.router)
 app.include_router(campaigns.router)
@@ -40,9 +55,7 @@ app.include_router(dashboard.router)
 app.include_router(whatsapp.router)
 
 
-# ─── Core Auth Endpoints ──────────────────────────────────────────────────────
-
-
+# Core Auth Endpoints
 @app.get("/")
 async def root():
     return {"status": "success", "message": "OneToMany Automation API"}

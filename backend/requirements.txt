@@ -8,3 +8,4 @@ pyjwt
 python-multipart
 fastapi-sso
 httpx
+apscheduler==3.10.4
