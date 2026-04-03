@@ -65,7 +65,7 @@ def get_status(
             session.last_seen = datetime.now(timezone.utc)
             db.commit()
     except Exception:
-        pass  # Bridge not running; return last known status
+        pass
 
     return schemas.WAStatusResponse(
         status=session.status,
@@ -191,7 +191,11 @@ def get_info(
 ):
     session = _get_or_create_session(current_user.id, db)
 
-    if session.wa_type == "meta" and session.meta_phone_id and session.meta_access_token:
+    if (
+        session.wa_type == "meta"
+        and session.meta_phone_id
+        and session.meta_access_token
+    ):
         try:
             token = _decrypt(session.meta_access_token)
             resp = httpx.get(
@@ -207,14 +211,16 @@ def get_info(
                 return schemas.WAInfoResponse(
                     name=data.get("verified_name"),
                     phone=data.get("display_phone_number"),
-                    connected_at=session.last_seen.isoformat() if session.last_seen else None,
+                    connected_at=(
+                        session.last_seen.isoformat() if session.last_seen else None
+                    ),
                     wa_type="meta",
                 )
         except Exception:
             pass
         return schemas.WAInfoResponse(wa_type="meta")
 
-    # QR bridge path
+    # QR Bridge Path
     try:
         resp = httpx.get(
             f"{BRIDGE_URL}/session/info",

@@ -5,7 +5,7 @@ import jwt
 
 SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-change-this-in-env")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = 480
 
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 if not ENCRYPTION_KEY:

@@ -69,7 +69,7 @@ export default function WhatsAppStatusButton({
           new Date(d.connected_at).toLocaleString("en-IN", {
             dateStyle: "medium",
             timeStyle: "short",
-          })
+          }),
         );
       }
     } catch {
@@ -211,8 +211,8 @@ export default function WhatsAppStatusButton({
             isConnected
               ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
               : isPending
-              ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-              : "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 border border-red-200 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-900/30"
+                ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                : "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 border border-red-200 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-900/30"
           }`}
         >
           <span
@@ -220,8 +220,8 @@ export default function WhatsAppStatusButton({
               isConnected
                 ? "bg-emerald-500"
                 : isPending
-                ? "bg-amber-400 animate-pulse"
-                : "bg-red-500 animate-pulse"
+                  ? "bg-amber-400 animate-pulse"
+                  : "bg-red-500 animate-pulse"
             }`}
           />
           <span className="truncate flex-1 text-left">
@@ -230,8 +230,8 @@ export default function WhatsAppStatusButton({
                 ? `Connected · ${info.phone}`
                 : "WhatsApp Connected"
               : isPending
-              ? "Connecting…"
-              : "Connect WhatsApp"}
+                ? "Connecting…"
+                : "Connect WhatsApp"}
           </span>
           <svg
             className="w-3 h-3 shrink-0 opacity-40"
@@ -240,14 +240,17 @@ export default function WhatsAppStatusButton({
             stroke="currentColor"
             strokeWidth={2.5}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 5l7 7-7 7"
+            />
           </svg>
         </button>
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title="WhatsApp">
         <div className="flex flex-col items-center gap-5 py-2">
-
           {/* ── Connected ── */}
           {isConnected ? (
             <>
@@ -255,7 +258,9 @@ export default function WhatsAppStatusButton({
                 {WA_ICON}
               </div>
               <div className="text-center">
-                <p className="font-bold text-emerald-600 dark:text-emerald-400 text-lg">Connected</p>
+                <p className="font-bold text-emerald-600 dark:text-emerald-400 text-lg">
+                  Connected
+                </p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {waType === "meta" ? "Via Meta Business API" : "Via QR Code"}
                 </p>
@@ -265,14 +270,22 @@ export default function WhatsAppStatusButton({
                   { label: "Name", value: info?.name || "—" },
                   { label: "Phone", value: info?.phone || "—" },
                   { label: "Connected at", value: connectedAt || "—" },
-                  { label: "Method", value: waType === "meta" ? "Meta Business API" : "QR Code" },
+                  {
+                    label: "Method",
+                    value: waType === "meta" ? "Meta Business API" : "QR Code",
+                  },
                 ].map((row) => (
                   <div
                     key={row.label}
                     className="flex items-center justify-between px-4 py-3 border-b last:border-b-0 border-gray-100 dark:border-gray-800"
                   >
-                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500">{row.label}</span>
-                    <span suppressHydrationWarning className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+                      {row.label}
+                    </span>
+                    <span
+                      suppressHydrationWarning
+                      className="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                    >
                       {row.value}
                     </span>
                   </div>
@@ -286,14 +299,23 @@ export default function WhatsAppStatusButton({
                 {disconnecting ? (
                   <Spinner className="text-white" />
                 ) : (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
                   </svg>
                 )}
                 Disconnect
               </button>
             </>
-
           ) : (
             /* ── Disconnected / Pending ── */
             <>
@@ -301,13 +323,39 @@ export default function WhatsAppStatusButton({
               {status === "disconnected" && !method && (
                 <>
                   <div className="text-center">
-                    <p className="font-semibold text-gray-900 dark:text-white">Connect WhatsApp</p>
-                    <p className="text-xs text-gray-400 mt-1">Choose how you want to connect</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      Connect WhatsApp
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Choose how you want to connect
+                    </p>
                   </div>
                   <div className="w-full grid grid-cols-2 gap-3">
                     {[
-                      { id: "qr" as ConnectionMethod, label: "QR Code", sub: "Scan with phone", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /> },
-                      { id: "meta" as ConnectionMethod, label: "Meta API", sub: "Business account", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /> },
+                      {
+                        id: "qr" as ConnectionMethod,
+                        label: "QR Code",
+                        sub: "Scan with phone",
+                        icon: (
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                          />
+                        ),
+                      },
+                      {
+                        id: "meta" as ConnectionMethod,
+                        label: "Meta API",
+                        sub: "Business account",
+                        icon: (
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                          />
+                        ),
+                      },
                     ].map((opt) => (
                       <button
                         key={opt.id}
@@ -315,11 +363,23 @@ export default function WhatsAppStatusButton({
                         className="flex flex-col items-center gap-2.5 p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all group"
                       >
                         <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-500 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/40 group-hover:text-indigo-600 transition-all">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>{opt.icon}</svg>
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={1.8}
+                          >
+                            {opt.icon}
+                          </svg>
                         </div>
                         <div className="text-center">
-                          <p className="text-xs font-bold text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{opt.label}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{opt.sub}</p>
+                          <p className="text-xs font-bold text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {opt.label}
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {opt.sub}
+                          </p>
                         </div>
                       </button>
                     ))}
@@ -334,7 +394,9 @@ export default function WhatsAppStatusButton({
                     onClick={async () => {
                       // Destroy QR session if pending
                       if (status === "qr_pending") {
-                        try { await apiPost("/whatsapp/disconnect"); } catch {}
+                        try {
+                          await apiPost("/whatsapp/disconnect");
+                        } catch {}
                         setStatus("disconnected");
                       }
                       setMethod(null);
@@ -343,8 +405,18 @@ export default function WhatsAppStatusButton({
                     }}
                     className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                      />
                     </svg>
                     Back
                   </button>
@@ -363,7 +435,8 @@ export default function WhatsAppStatusButton({
                       <p className="text-xs text-gray-400">Starting session…</p>
                     </div>
                   )}
-                  {(status === "qr_pending" || (status === "disconnected" && !connecting)) && (
+                  {(status === "qr_pending" ||
+                    (status === "disconnected" && !connecting)) && (
                     <>
                       {qr ? (
                         <img
@@ -375,28 +448,55 @@ export default function WhatsAppStatusButton({
                         <div className="w-56 h-56 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col items-center justify-center gap-3">
                           {qrError ? (
                             <>
-                              <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                              <svg
+                                className="w-8 h-8 text-red-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={1.5}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                                />
                               </svg>
-                              <p className="text-xs text-red-400 text-center px-4">Bridge failed to start Chrome.<br/>Try again in a moment.</p>
+                              <p className="text-xs text-red-400 text-center px-4">
+                                Bridge failed to start Chrome.
+                                <br />
+                                Try again in a moment.
+                              </p>
                               <button
-                                onClick={() => { setQrError(false); autoQrStarted.current = false; handleStartQR(); }}
+                                onClick={() => {
+                                  setQrError(false);
+                                  autoQrStarted.current = false;
+                                  handleStartQR();
+                                }}
                                 className="text-xs font-semibold text-indigo-500 hover:text-indigo-700 underline"
-                              >Retry</button>
+                              >
+                                Retry
+                              </button>
                             </>
                           ) : (
                             <>
                               <Spinner />
-                              <p className="text-xs text-gray-400">Generating QR…</p>
+                              <p className="text-xs text-gray-400">
+                                Generating QR…
+                              </p>
                             </>
                           )}
                         </div>
                       )}
                       <div className="text-center space-y-1">
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Open WhatsApp → <span className="font-semibold text-gray-700 dark:text-gray-300">Settings → Linked Devices → Link a Device</span>
+                          Open WhatsApp →{" "}
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">
+                            Settings → Linked Devices → Link a Device
+                          </span>
                         </p>
-                        <p className="text-[11px] text-gray-400">QR refreshes every ~20 seconds</p>
+                        <p className="text-[11px] text-gray-400">
+                          QR refreshes every ~20 seconds
+                        </p>
                       </div>
                     </>
                   )}
@@ -405,9 +505,14 @@ export default function WhatsAppStatusButton({
 
               {/* ── Meta API form ── */}
               {method === "meta" && status === "disconnected" && (
-                <form onSubmit={handleConnectMeta} className="w-full flex flex-col gap-3">
+                <form
+                  onSubmit={handleConnectMeta}
+                  className="w-full flex flex-col gap-3"
+                >
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Phone Number ID</label>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Phone Number ID
+                    </label>
                     <input
                       type="text"
                       value={phoneId}
@@ -417,7 +522,9 @@ export default function WhatsAppStatusButton({
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">WhatsApp Business Account ID</label>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      WhatsApp Business Account ID
+                    </label>
                     <input
                       type="text"
                       value={wabaId}
@@ -427,7 +534,9 @@ export default function WhatsAppStatusButton({
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Permanent Access Token</label>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Permanent Access Token
+                    </label>
                     <input
                       type="password"
                       value={accessToken}
@@ -437,16 +546,30 @@ export default function WhatsAppStatusButton({
                     />
                   </div>
                   {metaError && (
-                    <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{metaError}</p>
+                    <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
+                      {metaError}
+                    </p>
                   )}
                   <button
                     type="submit"
                     disabled={connecting}
                     className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-all disabled:opacity-50 text-sm mt-1"
                   >
-                    {connecting ? <Spinner className="text-white" /> : (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    {connecting ? (
+                      <Spinner className="text-white" />
+                    ) : (
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
                       </svg>
                     )}
                     {connecting ? "Connecting…" : "Connect"}

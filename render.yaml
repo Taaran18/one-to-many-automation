@@ -1,5 +1,5 @@
 services:
-  # ── FastAPI Backend ──────────────────────────────────────────────────────────
+  # FastAPI Backend
   - type: web
     name: onetomany-backend
     runtime: python
@@ -8,19 +8,19 @@ services:
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        sync: false          # set manually in Render dashboard
+        sync: false
       - key: SECRET_KEY
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
       - key: ALLOWED_ORIGINS
-        sync: false          # set to your Vercel URL after deploy
+        sync: false
       - key: BACKEND_URL
-        sync: false          # set to this service's Render URL after deploy
+        sync: false
       - key: BRIDGE_URL
-        sync: false          # set to onetomany-bridge Render URL after deploy
+        sync: false
 
-  # ── WhatsApp Bridge ──────────────────────────────────────────────────────────
+  # WhatsApp Bridge
   - type: web
     name: onetomany-bridge
     runtime: node

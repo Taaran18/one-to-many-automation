@@ -193,12 +193,14 @@ export default function DashboardPage() {
 
   const [today, setToday] = useState("");
   useEffect(() => {
-    setToday(new Date().toLocaleDateString("en-IN", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }));
+    setToday(
+      new Date().toLocaleDateString("en-IN", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    );
   }, []);
 
   return (
@@ -319,7 +321,10 @@ export default function DashboardPage() {
                     <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">
                       {item.name}
                     </p>
-                    <p suppressHydrationWarning className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    <p
+                      suppressHydrationWarning
+                      className="text-xs text-gray-400 dark:text-gray-500 mt-0.5"
+                    >
                       {item.scheduled_at
                         ? new Date(item.scheduled_at).toLocaleTimeString(
                             "en-IN",

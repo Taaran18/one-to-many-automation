@@ -11,7 +11,13 @@ interface ModalProps {
   wide?: boolean;
 }
 
-export default function Modal({ open, onClose, title, children, wide = false }: ModalProps) {
+export default function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  wide = false,
+}: ModalProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -32,7 +38,9 @@ export default function Modal({ open, onClose, title, children, wide = false }: 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className={`relative w-full ${wide ? "max-w-4xl" : "max-w-lg"} bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden`}>
+      <div
+        className={`relative w-full ${wide ? "max-w-4xl" : "max-w-lg"} bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden`}
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
           <h2 className="text-base font-bold text-gray-900 dark:text-white">
             {title}
@@ -59,6 +67,6 @@ export default function Modal({ open, onClose, title, children, wide = false }: 
         <div className="px-6 py-5">{children}</div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

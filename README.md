@@ -52,32 +52,32 @@ A full-stack platform to scale customer outreach via **WhatsApp bulk messaging**
 
 ### Frontend
 
-| | |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript |
-| Styling | Tailwind CSS v4 |
-| Charts | Recharts |
-| Theming | next-themes (dark/light mode) |
+|           |                               |
+| --------- | ----------------------------- |
+| Framework | Next.js 16 (App Router)       |
+| Language  | TypeScript                    |
+| Styling   | Tailwind CSS v4               |
+| Charts    | Recharts                      |
+| Theming   | next-themes (dark/light mode) |
 
 ### Backend
 
-| | |
-|---|---|
-| Framework | FastAPI 0.115 |
-| ORM | SQLAlchemy |
-| Database | PostgreSQL via Supabase |
-| Driver | psycopg2-binary |
-| Auth | JWT (PyJWT) + OAuth2 |
+|            |                           |
+| ---------- | ------------------------- |
+| Framework  | FastAPI 0.115             |
+| ORM        | SQLAlchemy                |
+| Database   | PostgreSQL via Supabase   |
+| Driver     | psycopg2-binary           |
+| Auth       | JWT (PyJWT) + OAuth2      |
 | Encryption | Fernet AES (cryptography) |
 
 ### WhatsApp Bridge
 
-| | |
-|---|---|
-| Runtime | Node.js |
-| Server | Express 4 |
-| WhatsApp client | whatsapp-web.js |
+|                 |                                |
+| --------------- | ------------------------------ |
+| Runtime         | Node.js                        |
+| Server          | Express 4                      |
+| WhatsApp client | whatsapp-web.js                |
 | Session storage | Local filesystem (`sessions/`) |
 
 ---
@@ -107,6 +107,7 @@ cp backend/.env.example backend/.env
 ```
 
 Edit `backend/.env` — at minimum set:
+
 - `DATABASE_URL` — your Supabase PostgreSQL connection string
 - `SECRET_KEY` — random hex string
 - `ENCRYPTION_KEY` — Fernet key
@@ -183,14 +184,14 @@ ENCRYPTION_KEY=your_fernet_key_here
 
 ## API Overview
 
-| Router      | Prefix                | Description                            |
-| ----------- | --------------------- | -------------------------------------- |
-| Auth        | `/register`, `/login` | Register & login with email or phone   |
-| Leads       | `/leads`              | CRUD for contacts + group management   |
-| Templates   | `/templates`          | QR and Meta template management        |
-| Campaigns   | `/campaigns`          | Create, schedule, start, tag campaigns |
-| Dashboard   | `/dashboard`          | Aggregated stats and charts            |
-| WhatsApp    | `/whatsapp`           | QR session / Meta API connection       |
+| Router    | Prefix                | Description                            |
+| --------- | --------------------- | -------------------------------------- |
+| Auth      | `/register`, `/login` | Register & login with email or phone   |
+| Leads     | `/leads`              | CRUD for contacts + group management   |
+| Templates | `/templates`          | QR and Meta template management        |
+| Campaigns | `/campaigns`          | Create, schedule, start, tag campaigns |
+| Dashboard | `/dashboard`          | Aggregated stats and charts            |
+| WhatsApp  | `/whatsapp`           | QR session / Meta API connection       |
 
 Full interactive docs: `http://localhost:8000/docs`
 

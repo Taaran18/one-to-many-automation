@@ -1,14 +1,10 @@
-# ──────────────────────────────────────────────
-# ONE-TO-MANY AUTOMATION — .gitignore
-# ──────────────────────────────────────────────
-
-# ─── Environment / Secrets ───────────────────
+# Environment / Secrets
 .env
 .env.local
 .env.*.local
 backend/.env
 
-# ─── Frontend (Next.js / Node) ───────────────
+# Frontend (Next.js / Node)
 frontend/node_modules/
 frontend/.next/
 frontend/out/
@@ -22,7 +18,7 @@ frontend/.pnp.*
 frontend/.eslintcache
 frontend/tsconfig.tsbuildinfo
 
-# ─── WhatsApp Bridge (Node / Express) ────────
+# WhatsApp Bridge (Node / Express)
 whatsapp-bridge/node_modules/
 whatsapp-bridge/sessions/
 whatsapp-bridge/.wwebjs_cache/
@@ -30,10 +26,10 @@ whatsapp-bridge/.wwebjs_auth/
 whatsapp-bridge/npm-debug.log*
 whatsapp-bridge/yarn-debug.log*
 
-# ─── Root package-lock ───────────────────────
+# Root package-lock
 package-lock.json
 
-# ─── Backend (Python / FastAPI) ──────────────
+# Backend (Python / FastAPI)
 backend/__pycache__/
 backend/**/__pycache__/
 backend/*.py[cod]
@@ -49,11 +45,11 @@ backend/pip-delete-this-directory.txt
 backend/reset_db.py
 backend/reset_db2.py
 
-# ─── Database Files ───────────────────────────
+# Database Files
 *.sqlite3
 *.db
 
-# ─── OS / System Files ────────────────────────
+# OS / System Files
 .DS_Store
 **/.DS_Store
 .AppleDouble
@@ -62,7 +58,7 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# ─── IDEs / Editors ───────────────────────────
+# IDEs / Editors
 .vscode/
 .idea/
 .claude/
@@ -73,13 +69,13 @@ Desktop.ini
 *.userosscache
 *.sln.docstates
 
-# ─── Logs ─────────────────────────────────────
+# Logs
 logs/
 *.log
 
-# ─── Misc ────────────────────────────────────
+# Misc
 .cache/
 tmp/
 
-# ─── Backend Uploads ──────────────────────────────────────────────────────────
+# Backend Uploads
 backend/uploads/

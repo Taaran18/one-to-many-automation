@@ -136,7 +136,9 @@ export default function Sidebar({
   };
 
   return (
-    <aside className={`fixed left-0 top-0 h-full w-64 flex flex-col z-30 bg-white dark:bg-gray-950 border-r border-gray-100 dark:border-gray-800/60 transition-transform duration-200 ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+    <aside
+      className={`fixed left-0 top-0 h-full w-64 flex flex-col z-30 bg-white dark:bg-gray-950 border-r border-gray-100 dark:border-gray-800/60 transition-transform duration-200 ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+    >
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 shrink-0">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
@@ -214,7 +216,11 @@ export default function Sidebar({
 
       {/* WhatsApp status */}
       <div className="px-3 pt-3">
-        <WhatsAppStatusButton compact onOpen={onMobileClose} forceOpen={waForceOpen} />
+        <WhatsAppStatusButton
+          compact
+          onOpen={onMobileClose}
+          forceOpen={waForceOpen}
+        />
       </div>
 
       {/* User row */}
