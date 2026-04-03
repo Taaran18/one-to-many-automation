@@ -15,13 +15,28 @@ const BTN_P =
 const BTN_G =
   "flex items-center justify-center gap-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition-all";
 
-const QR_VARS = ["{{name}}", "{{phone}}", "{{email}}", "{{tags}}"];
+const QR_VARS = [
+  { label: "Name", value: "{{name}}" },
+  { label: "Phone", value: "{{phone}}" },
+  { label: "Email", value: "{{email}}" },
+  { label: "Company Name", value: "{{company_name}}" },
+  { label: "City", value: "{{city}}" },
+  { label: "State", value: "{{state}}" },
+  { label: "Country", value: "{{country}}" },
+  { label: "Pincode", value: "{{pincode}}" },
+  { label: "Tags", value: "{{tags}}" },
+];
 
 const prev = (b: string) =>
   b
     .replace(/{{name}}/g, "Ramesh Kumar")
     .replace(/{{phone}}/g, "+919876543210")
     .replace(/{{email}}/g, "ramesh@example.com")
+    .replace(/{{company_name}}/g, "Acme Corp")
+    .replace(/{{city}}/g, "Mumbai")
+    .replace(/{{state}}/g, "Maharashtra")
+    .replace(/{{country}}/g, "India")
+    .replace(/{{pincode}}/g, "400001")
     .replace(/{{tags}}/g, "VIP")
     .replace(/{{1}}/g, "Ramesh")
     .replace(/{{2}}/g, "Order #1234")
@@ -119,6 +134,7 @@ export default function TemplatesPage() {
   const [metaHeaderImageUrl, setMetaHeaderImageUrl] = useState("");
   const [metaVarSamples, setMetaVarSamples] = useState<string[]>([]);
   const metaBodyRef = useRef<HTMLTextAreaElement>(null);
+  const qrBodyRef = useRef<HTMLTextAreaElement>(null);
   const [metaButtons, setMetaButtons] = useState<
     { type: string; text: string; url: string; phone_number: string }[]
   >([]);
@@ -1352,22 +1368,39 @@ export default function TemplatesPage() {
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
                   Message Body *
                 </label>
-                <div className="flex gap-1 flex-wrap justify-end">
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const varStr = e.target.value;
+                    if (!varStr) return;
+                    const textarea = qrBodyRef.current;
+                    if (textarea) {
+                      const s = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const newBody =
+                        qrForm.body.slice(0, s) + varStr + qrForm.body.slice(end);
+                      setQrForm((f) => ({ ...f, body: newBody }));
+                      requestAnimationFrame(() => {
+                        textarea.selectionStart = s + varStr.length;
+                        textarea.selectionEnd = s + varStr.length;
+                        textarea.focus();
+                      });
+                    } else {
+                      setQrForm((f) => ({ ...f, body: f.body + varStr }));
+                    }
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 outline-none cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all"
+                >
+                  <option value="">Insert variable…</option>
                   {QR_VARS.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() =>
-                        setQrForm((f) => ({ ...f, body: f.body + v }))
-                      }
-                      className="text-xs px-1.5 py-0.5 rounded font-mono bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all"
-                    >
-                      {v}
-                    </button>
+                    <option key={v.value} value={v.value}>
+                      {v.label} — {v.value}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
               <textarea
+                ref={qrBodyRef}
                 required
                 value={qrForm.body}
                 onChange={(e) => setQrForm({ ...qrForm, body: e.target.value })}

@@ -25,6 +25,11 @@ def _resolve_template(body: str, lead: models.Lead) -> str:
         body.replace("{{name}}", lead.name or "")
         .replace("{{phone}}", lead.phone_no or "")
         .replace("{{email}}", lead.email or "")
+        .replace("{{company_name}}", lead.company_name or "")
+        .replace("{{city}}", lead.city or "")
+        .replace("{{state}}", lead.state or "")
+        .replace("{{country}}", lead.country or "")
+        .replace("{{pincode}}", lead.pincode or "")
         .replace("{{tags}}", lead.tags or "")
     )
 
@@ -35,6 +40,11 @@ def _meta_body_params(body: str, lead: models.Lead) -> list:
         "name": lead.name or "",
         "phone": lead.phone_no or "",
         "email": lead.email or "",
+        "company_name": lead.company_name or "",
+        "city": lead.city or "",
+        "state": lead.state or "",
+        "country": lead.country or "",
+        "pincode": lead.pincode or "",
         "tags": lead.tags or "",
     }
     seen = set()
