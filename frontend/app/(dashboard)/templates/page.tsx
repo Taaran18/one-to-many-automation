@@ -202,6 +202,7 @@ export default function TemplatesPage() {
     name: "",
     meta_template_name: "",
     category: "MARKETING",
+    language: "en_US",
     body: "",
     header: "",
     footer: "",
@@ -277,6 +278,7 @@ export default function TemplatesPage() {
       name: "",
       meta_template_name: "",
       category: "MARKETING",
+      language: "en_US",
       body: "",
       header: "",
       footer: "",
@@ -437,6 +439,7 @@ export default function TemplatesPage() {
         name: metaForm.name,
         meta_template_name: metaName,
         category: metaForm.category,
+        language: metaForm.language,
         body: metaForm.body,
       };
       if (metaHeaderType === "text" && metaForm.header.trim())
@@ -932,6 +935,31 @@ export default function TemplatesPage() {
                       {c.label}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
+                  Language *
+                </label>
+                <select
+                  value={metaForm.language}
+                  onChange={(e) =>
+                    setMetaForm({ ...metaForm, language: e.target.value })
+                  }
+                  className={INPUT}
+                >
+                  <option value="en_US">English (US)</option>
+                  <option value="en_GB">English (UK)</option>
+                  <option value="hi">Hindi</option>
+                  <option value="mr">Marathi</option>
+                  <option value="gu">Gujarati</option>
+                  <option value="ta">Tamil</option>
+                  <option value="te">Telugu</option>
+                  <option value="kn">Kannada</option>
+                  <option value="bn">Bengali</option>
+                  <option value="pa">Punjabi</option>
+                  <option value="ml">Malayalam</option>
                 </select>
               </div>
 

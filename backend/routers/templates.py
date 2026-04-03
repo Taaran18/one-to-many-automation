@@ -293,7 +293,9 @@ def create_meta_template(
         raise HTTPException(status_code=503, detail="Could not reach Meta Graph API.")
 
     if resp.status_code not in (200, 201):
-        detail = resp.json().get("error", {}).get("message", "Meta API error.")
+        err = resp.json().get("error", {})
+        detail = err.get("error_user_msg") or err.get("message", "Meta API error.")
+        print(f"[meta] Template creation failed: {resp.json()}")
         raise HTTPException(status_code=400, detail=detail)
 
     meta_status = resp.json().get("status", "PENDING")

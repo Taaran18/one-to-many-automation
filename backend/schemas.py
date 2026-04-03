@@ -148,7 +148,7 @@ class TemplateMetaCreate(BaseModel):
     name: str
     meta_template_name: str
     category: str
-    language: str = "en"
+    language: str = "en_US"
     body: str
     header: Optional[str] = None
     header_image_url: Optional[str] = None
