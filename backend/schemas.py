@@ -292,3 +292,42 @@ class WAMetaConnectRequest(BaseModel):
     phone_id: str
     access_token: str
     waba_id: str
+
+
+# Chat Schemas
+class ChatMessage(BaseModel):
+    id: int
+    direction: str  # "outbound" | "inbound"
+    body: str
+    timestamp: Optional[datetime] = None
+    status: Optional[str] = None  # sent / delivered / failed (for outbound)
+    campaign_id: Optional[int] = None
+    campaign_name: Optional[str] = None
+    is_read: Optional[bool] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ChatContact(BaseModel):
+    lead_id: Optional[int] = None
+    name: str
+    phone_no: str
+    last_message: Optional[str] = None
+    last_message_at: Optional[datetime] = None
+    unread_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class SendMessageRequest(BaseModel):
+    phone_no: str
+    body: str
+
+
+class IncomingWebhookPayload(BaseModel):
+    user_id: int
+    phone_no: str
+    body: str
+    wa_message_id: Optional[str] = None

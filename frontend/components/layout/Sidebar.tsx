@@ -85,6 +85,25 @@ const NAV = [
       </svg>
     ),
   },
+  {
+    href: "/chats",
+    label: "Chats",
+    icon: (
+      <svg
+        className="w-[18px] h-[18px] shrink-0"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.8}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
+        />
+      </svg>
+    ),
+  },
 ];
 
 function getUserInfo(): { email: string; initial: string } {
@@ -113,6 +132,7 @@ export default function Sidebar({
     typeof window !== "undefined" ? getUserInfo() : { email: "", initial: "U" };
 
   const [waForceOpen, setWaForceOpen] = useState(false);
+  const [unreadChats, setUnreadChats] = useState(0);
 
   useEffect(() => {
     // Only show once per browser session
@@ -127,6 +147,18 @@ export default function Sidebar({
         }
       } catch {}
     })();
+  }, []);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const data = await apiGet<{ unread_count: number }>("/chats/unread_count");
+        setUnreadChats(data.unread_count);
+      } catch {}
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = () => {
@@ -191,6 +223,11 @@ export default function Sidebar({
                 {item.icon}
               </span>
               <span className="flex-1">{item.label}</span>
+              {item.href === "/chats" && unreadChats > 0 && !active && (
+                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-green-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {unreadChats > 99 ? "99+" : unreadChats}
+                </span>
+              )}
               {active && (
                 <svg
                   className="w-3.5 h-3.5 text-white/70"

@@ -221,8 +221,27 @@ class MessageLog(Base):
     sent_at = Column(DateTime(timezone=True), server_default=func.now())
     error_message = Column(Text, nullable=True)
     run_number = Column(Integer, nullable=False, default=1)
+    body_text = Column(Text, nullable=True)  # Resolved message body for chat view
     campaign = relationship("Campaign", back_populates="message_logs")
     lead = relationship("Lead", back_populates="message_logs")
+
+
+class IncomingMessage(Base):
+    """Stores messages received FROM leads (replies to campaigns or organic messages)."""
+    __tablename__ = "incoming_messages"
+    __table_args__ = (
+        Index("ix_incoming_user_phone", "user_id", "phone_no"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    phone_no = Column(String(30), nullable=False)  # The lead's phone number
+    body = Column(Text, nullable=False)
+    received_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_read = Column(Boolean, default=False, nullable=False)
+    wa_message_id = Column(String(255), nullable=True)  # External WA message ID
+
+    owner = relationship("User")
 
 
 class WhatsAppSession(Base):

@@ -3,6 +3,7 @@ const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
 const path = require("path");
 const fs = require("fs");
+const http = require("http");
 
 // Prevent Chrome crashes from killing the process
 process.on("uncaughtException", (err) => {
@@ -122,6 +123,40 @@ async function createSession(userId) {
       };
     } catch (_) { }
     console.log(`[user ${id}] WhatsApp connected — ${session.info?.phone}`);
+  });
+
+  // Forward incoming messages to the backend webhook
+  client.on("message", async (msg) => {
+    try {
+      // Only handle regular chats (not groups, status updates etc.)
+      if (msg.isGroupMsg || msg.from === "status@broadcast") return;
+      const fromPhone = msg.from.replace("@c.us", "").replace("@s.whatsapp.net", "");
+      const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
+      const payload = JSON.stringify({
+        user_id: parseInt(id),
+        phone_no: fromPhone,
+        body: msg.body || "[media]",
+        wa_message_id: msg.id ? msg.id._serialized : null,
+      });
+      const url = new URL(`${backendUrl}/chats/webhook/incoming`);
+      const options = {
+        hostname: url.hostname,
+        port: url.port || 80,
+        path: url.pathname,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+        },
+      };
+      const req = http.request(options);
+      req.on("error", (e) => console.error(`[user ${id}] Webhook error:`, e.message));
+      req.write(payload);
+      req.end();
+      console.log(`[user ${id}] Forwarded incoming msg from ${fromPhone}`);
+    } catch (e) {
+      console.error(`[user ${id}] message handler error:`, e.message);
+    }
   });
 
   client.on("auth_failure", () => {

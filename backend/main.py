@@ -9,7 +9,7 @@ import os, uuid, shutil
 
 import models, schemas, auth
 from database import engine, get_db
-from routers import leads, templates, campaigns, dashboard, whatsapp
+from routers import leads, templates, campaigns, dashboard, whatsapp, chats
 from scheduler import check_scheduled_campaigns
 
 os.makedirs("uploads", exist_ok=True)
@@ -53,6 +53,7 @@ app.include_router(templates.router)
 app.include_router(campaigns.router)
 app.include_router(dashboard.router)
 app.include_router(whatsapp.router)
+app.include_router(chats.router)
 
 
 # Core Auth Endpoints

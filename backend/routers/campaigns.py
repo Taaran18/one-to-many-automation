@@ -216,6 +216,7 @@ def _run_campaign(campaign_id: int, user_id: int):
                 status=status,
                 error_message=error,
                 run_number=current_run,
+                body_text=message,  # Store resolved text for chat view
             )
             db.add(log)
             db.commit()

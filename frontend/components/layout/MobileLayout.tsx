@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 
 export default function MobileLayout({
@@ -9,6 +10,8 @@ export default function MobileLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  const isChats = pathname === "/chats";
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -27,7 +30,7 @@ export default function MobileLayout({
       )}
 
       {/* Main content */}
-      <div className="flex-1 lg:ml-64 min-h-screen flex flex-col">
+      <div className={`flex-1 lg:ml-64 ${isChats ? "flex flex-col h-screen overflow-hidden" : "min-h-screen flex flex-col"}`}>
         {/* Mobile top bar */}
         <div className="lg:hidden sticky top-0 z-10 flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-950 border-b border-gray-100 dark:border-gray-800">
           <button
@@ -65,9 +68,13 @@ export default function MobileLayout({
           </div>
         </div>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 w-full">
-          {children}
-        </main>
+        {isChats ? (
+          <div className="flex-1 overflow-hidden">{children}</div>
+        ) : (
+          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 w-full">
+            {children}
+          </main>
+        )}
       </div>
     </div>
   );

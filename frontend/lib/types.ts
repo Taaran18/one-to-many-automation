@@ -106,3 +106,24 @@ export interface WAStatus {
   user_email?: string;
   wa_type?: "qr" | "meta";
 }
+
+export interface ChatMessage {
+  id: number;
+  direction: "outbound" | "inbound";
+  body: string;
+  timestamp?: string;
+  status?: string;
+  campaign_id?: number;
+  campaign_name?: string;
+  is_read?: boolean;
+}
+
+export interface ChatContact {
+  lead_id?: number;
+  name: string;
+  phone_no: string;
+  last_message?: string;
+  last_message_at?: string;
+  unread_count: number;
+}
+
