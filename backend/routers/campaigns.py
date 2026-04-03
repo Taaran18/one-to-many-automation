@@ -41,11 +41,15 @@ def _meta_body_params(body: str, lead: models.Lead, variable_map: dict | None = 
     lead field each position maps to: {"1": "name", "2": "phone", "3": "email"}.
     For named templates ({{name}}, {{phone}}, …) we fall back to direct lookup.
     """
+    address = ", ".join(
+        part for part in [lead.address_line1, lead.address_line2, lead.address_line3] if part
+    )
     lead_field_map = {
         "name": lead.name or "",
         "phone": lead.phone_no or "",
         "email": lead.email or "",
         "company_name": lead.company_name or "",
+        "address": address,
         "city": lead.city or "",
         "state": lead.state or "",
         "country": lead.country or "",

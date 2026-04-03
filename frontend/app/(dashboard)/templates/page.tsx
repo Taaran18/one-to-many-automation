@@ -1564,6 +1564,7 @@ export default function TemplatesPage() {
               { label: "Phone", value: "phone" },
               { label: "Email", value: "email" },
               { label: "Company Name", value: "company_name" },
+              { label: "Address (Line 1 + 2 + 3)", value: "address" },
               { label: "City", value: "city" },
               { label: "State", value: "state" },
               { label: "Country", value: "country" },
