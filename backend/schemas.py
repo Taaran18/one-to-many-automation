@@ -155,6 +155,7 @@ class TemplateMetaCreate(BaseModel):
     footer: Optional[str] = None
     buttons: Optional[List[TemplateButtonItem]] = None
     variable_samples: Optional[List[str]] = None
+    meta_variable_map: Optional[str] = None
 
 
 class TemplateResponse(BaseModel):

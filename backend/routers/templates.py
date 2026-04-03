@@ -308,6 +308,7 @@ def create_meta_template(
         meta_status=meta_status,
         meta_header_image_url=body.header_image_url or None,
         meta_language=body.language,
+        meta_variable_map=body.meta_variable_map or None,
     )
     db.add(db_template)
     db.commit()

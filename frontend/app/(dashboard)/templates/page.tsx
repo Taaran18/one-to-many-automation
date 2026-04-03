@@ -27,6 +27,33 @@ const QR_VARS = [
   { label: "Tags", value: "{{tags}}" },
 ];
 
+const META_FIELD_OPTIONS = [
+  { label: "— select field —", value: "" },
+  { label: "Name", value: "name" },
+  { label: "Phone", value: "phone" },
+  { label: "Email", value: "email" },
+  { label: "Company Name", value: "company_name" },
+  { label: "Address (Line 1 + 2 + 3)", value: "address" },
+  { label: "City", value: "city" },
+  { label: "State", value: "state" },
+  { label: "Country", value: "country" },
+  { label: "Pincode", value: "pincode" },
+  { label: "Tags", value: "tags" },
+];
+
+const META_FIELD_SAMPLES: Record<string, string> = {
+  name: "Ramesh Kumar",
+  phone: "+919876543210",
+  email: "ramesh@example.com",
+  company_name: "Acme Corp",
+  address: "No 14A, 5th Main, Jayamahal",
+  city: "Bengaluru",
+  state: "Karnataka",
+  country: "India",
+  pincode: "560046",
+  tags: "VIP",
+};
+
 const prev = (b: string) =>
   b
     .replace(/{{name}}/g, "Ramesh Kumar")
@@ -186,6 +213,7 @@ export default function TemplatesPage() {
   const [metaVarSamples, setMetaVarSamples] = useState<string[]>([]);
   const metaBodyRef = useRef<HTMLTextAreaElement>(null);
   const qrBodyRef = useRef<HTMLTextAreaElement>(null);
+  const [metaVarMap, setMetaVarMap] = useState<Record<string, string>>({});
   const [metaButtons, setMetaButtons] = useState<
     { type: string; text: string; url: string; phone_number: string }[]
   >([]);
@@ -256,6 +284,7 @@ export default function TemplatesPage() {
     setMetaHeaderType("none");
     setMetaHeaderImageUrl("");
     setMetaVarSamples([]);
+    setMetaVarMap({});
     setMetaButtons([]);
     setMetaError("");
     setOpen(true);
@@ -373,7 +402,7 @@ export default function TemplatesPage() {
     }
   };
 
-  // Count {{N}} variables in body and keep varSamples in sync
+  // Count {{N}} variables in body and keep varSamples + varMap in sync
   const syncVarSamples = (body: string, prev: string[]) => {
     const matches = body.match(/\{\{\d+\}\}/g) || [];
     const max = matches.reduce(
@@ -382,6 +411,11 @@ export default function TemplatesPage() {
     );
     const next = Array.from({ length: max }, (_, i) => prev[i] ?? "");
     setMetaVarSamples(next);
+    setMetaVarMap((prevMap) => {
+      const nextMap: Record<string, string> = {};
+      for (let i = 1; i <= max; i++) nextMap[String(i)] = prevMap[String(i)] ?? "";
+      return nextMap;
+    });
   };
 
   const handleSaveMeta = async (e: React.FormEvent) => {
@@ -414,6 +448,8 @@ export default function TemplatesPage() {
         payload.variable_samples = metaVarSamples.map(
           (s) => s.trim() || `value${metaVarSamples.indexOf(s) + 1}`,
         );
+      if (Object.values(metaVarMap).some((v) => v))
+        payload.meta_variable_map = JSON.stringify(metaVarMap);
       if (metaButtons.length)
         payload.buttons = metaButtons.map(
           ({ type, text, url, phone_number }) => ({
@@ -1087,30 +1123,50 @@ export default function TemplatesPage() {
                 </p>
               </div>
 
-              {/* Variable samples */}
+              {/* Variable samples + mapping */}
               {metaVarSamples.length > 0 && (
                 <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/10 p-3 space-y-2">
                   <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
                     Sample values{" "}
                     <span className="font-normal text-indigo-500">
-                      · Sent to Meta for approval
+                      · Select the lead field, then edit the sample text sent to Meta
                     </span>
                   </p>
-                  {metaVarSamples.map((val, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-indigo-500 dark:text-indigo-400 w-8 shrink-0">{`{{${i + 1}}}`}</span>
-                      <input
-                        value={val}
-                        onChange={(e) => {
-                          const next = [...metaVarSamples];
-                          next[i] = e.target.value;
-                          setMetaVarSamples(next);
-                        }}
-                        placeholder={`e.g. Ramesh`}
-                        className={`${INPUT} py-1.5 text-xs`}
-                      />
-                    </div>
-                  ))}
+                  {metaVarSamples.map((val, i) => {
+                    const num = String(i + 1);
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold text-indigo-500 dark:text-indigo-400 w-8 shrink-0">{`{{${num}}}`}</span>
+                        <select
+                          value={metaVarMap[num] ?? ""}
+                          onChange={(e) => {
+                            const field = e.target.value;
+                            setMetaVarMap((prev) => ({ ...prev, [num]: field }));
+                            if (field && META_FIELD_SAMPLES[field]) {
+                              const next = [...metaVarSamples];
+                              next[i] = META_FIELD_SAMPLES[field];
+                              setMetaVarSamples(next);
+                            }
+                          }}
+                          className={`${INPUT} py-1.5 text-xs w-40 shrink-0`}
+                        >
+                          {META_FIELD_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                        <input
+                          value={val}
+                          onChange={(e) => {
+                            const next = [...metaVarSamples];
+                            next[i] = e.target.value;
+                            setMetaVarSamples(next);
+                          }}
+                          placeholder="Sample value for Meta approval"
+                          className={`${INPUT} py-1.5 text-xs flex-1`}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -1558,19 +1614,7 @@ export default function TemplatesPage() {
           {(() => {
             const nums = Object.keys(metaEditVarMap).sort((a, b) => parseInt(a) - parseInt(b));
             if (nums.length === 0) return null;
-            const FIELD_OPTIONS = [
-              { label: "— select field —", value: "" },
-              { label: "Name", value: "name" },
-              { label: "Phone", value: "phone" },
-              { label: "Email", value: "email" },
-              { label: "Company Name", value: "company_name" },
-              { label: "Address (Line 1 + 2 + 3)", value: "address" },
-              { label: "City", value: "city" },
-              { label: "State", value: "state" },
-              { label: "Country", value: "country" },
-              { label: "Pincode", value: "pincode" },
-              { label: "Tags", value: "tags" },
-            ];
+            const FIELD_OPTIONS = META_FIELD_OPTIONS;
             return (
               <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/10 p-3 space-y-2.5">
                 <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
