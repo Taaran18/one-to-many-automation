@@ -207,6 +207,51 @@ app.post("/message/send", async (req, res) => {
 app.get("/", (_req, res) => res.json({ status: "ok", service: "WhatsApp Bridge", port: PORT }));
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
-app.listen(PORT, () => {
-  console.log(`WhatsApp bridge running on port ${PORT}`);
-});
+// ── Restore sessions on startup ────────────────────────────────────────────
+// Scans SESSIONS_DIR for saved LocalAuth session directories and calls
+// createSession() for each one so WhatsApp reconnects without a new QR scan.
+// This runs before express starts listening so the sessions Map already has
+// entries (status "qr_pending") by the time the first status poll arrives.
+
+async function restoreExistingSessions() {
+  const authDir = path.join(SESSIONS_DIR, "wwebjs_auth");
+  if (!fs.existsSync(authDir)) {
+    console.log("[startup] No saved sessions — fresh start");
+    return;
+  }
+
+  let entries;
+  try {
+    entries = fs.readdirSync(authDir).filter((d) => d.startsWith("session-user_"));
+  } catch (e) {
+    console.error("[startup] Could not read auth dir:", e.message);
+    return;
+  }
+
+  if (entries.length === 0) {
+    console.log("[startup] No saved sessions — fresh start");
+    return;
+  }
+
+  console.log(`[startup] Found ${entries.length} saved session(s) — restoring...`);
+  for (const dir of entries) {
+    const userId = dir.replace("session-user_", "");
+    if (!userId) continue;
+    console.log(`[startup] Restoring session for user ${userId}`);
+    try {
+      await createSession(userId);
+    } catch (e) {
+      console.error(`[startup] Failed to restore session for user ${userId}:`, e.message);
+    }
+  }
+}
+
+// Restore first, then open the port so status polls see "qr_pending" → "connected"
+// rather than a brief "disconnected" window.
+restoreExistingSessions()
+  .catch((err) => console.error("[startup] Session restore error:", err.message))
+  .finally(() => {
+    app.listen(PORT, () => {
+      console.log(`WhatsApp bridge running on port ${PORT}`);
+    });
+  });
