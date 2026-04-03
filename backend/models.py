@@ -162,6 +162,7 @@ class Template(Base):
     meta_status = Column(String(50), nullable=True)
     meta_language = Column(String(20), nullable=True)
     meta_header_image_url = Column(Text, nullable=True)
+    meta_variable_map = Column(Text, nullable=True)  # JSON: {"1": "name", "2": "phone"}
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

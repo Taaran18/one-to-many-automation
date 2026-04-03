@@ -190,7 +190,7 @@ export default function TemplatesPage() {
     { type: string; text: string; url: string; phone_number: string }[]
   >([]);
   const [metaError, setMetaError] = useState("");
-  // Meta edit (name + tags + body)
+  // Meta edit (name + tags + body + variable map)
   const [metaEditOpen, setMetaEditOpen] = useState(false);
   const [metaEditTemplate, setMetaEditTemplate] = useState<Template | null>(
     null,
@@ -200,6 +200,7 @@ export default function TemplatesPage() {
     tags: "",
     body: "",
   });
+  const [metaEditVarMap, setMetaEditVarMap] = useState<Record<string, string>>({});
   const [metaEditSaving, setMetaEditSaving] = useState(false);
   // Quick tags modal (any template)
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -263,6 +264,14 @@ export default function TemplatesPage() {
   const openMetaEdit = (t: Template) => {
     setMetaEditTemplate(t);
     setMetaEditForm({ name: t.name, tags: t.tags ?? "", body: t.body });
+    // Parse existing variable map, then fill in any numbered vars from body that are missing
+    const existingMap: Record<string, string> = {};
+    if (t.meta_variable_map) {
+      try { Object.assign(existingMap, JSON.parse(t.meta_variable_map)); } catch {}
+    }
+    const nums = [...(t.body.match(/\{\{(\d+)\}\}/g) || [])].map((m) => m.replace(/\{|\}/g, ""));
+    for (const n of nums) { if (!(n in existingMap)) existingMap[n] = ""; }
+    setMetaEditVarMap(existingMap);
     setMetaEditOpen(true);
   };
 
@@ -271,11 +280,15 @@ export default function TemplatesPage() {
     if (!metaEditTemplate) return;
     setMetaEditSaving(true);
     try {
-      await apiPut(`/templates/${metaEditTemplate.id}`, {
+      const payload: Record<string, unknown> = {
         name: metaEditForm.name,
         tags: metaEditForm.tags || null,
         body: metaEditForm.body,
-      });
+      };
+      if (Object.keys(metaEditVarMap).length > 0) {
+        payload.meta_variable_map = JSON.stringify(metaEditVarMap);
+      }
+      await apiPut(`/templates/${metaEditTemplate.id}`, payload);
       setMetaEditOpen(false);
       load();
     } catch (err: any) {
@@ -1522,9 +1535,17 @@ export default function TemplatesPage() {
             </label>
             <textarea
               value={metaEditForm.body}
-              onChange={(e) =>
-                setMetaEditForm({ ...metaEditForm, body: e.target.value })
-              }
+              onChange={(e) => {
+                const body = e.target.value;
+                setMetaEditForm({ ...metaEditForm, body });
+                // Keep varMap keys in sync with numbered vars in body
+                const nums = [...(body.match(/\{\{(\d+)\}\}/g) || [])].map((m) => m.replace(/\{|\}/g, ""));
+                setMetaEditVarMap((prev) => {
+                  const next: Record<string, string> = {};
+                  for (const n of nums) next[n] = prev[n] ?? "";
+                  return next;
+                });
+              }}
               rows={5}
               className={`${INPUT} resize-none font-mono text-xs`}
             />
@@ -1532,6 +1553,50 @@ export default function TemplatesPage() {
               Saved locally only — does not re-submit to Meta.
             </p>
           </div>
+
+          {/* Variable Mapping — shown when body has {{1}}, {{2}}, … */}
+          {(() => {
+            const nums = Object.keys(metaEditVarMap).sort((a, b) => parseInt(a) - parseInt(b));
+            if (nums.length === 0) return null;
+            const FIELD_OPTIONS = [
+              { label: "— select field —", value: "" },
+              { label: "Name", value: "name" },
+              { label: "Phone", value: "phone" },
+              { label: "Email", value: "email" },
+              { label: "Company Name", value: "company_name" },
+              { label: "City", value: "city" },
+              { label: "State", value: "state" },
+              { label: "Country", value: "country" },
+              { label: "Pincode", value: "pincode" },
+              { label: "Tags", value: "tags" },
+            ];
+            return (
+              <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/10 p-3 space-y-2.5">
+                <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                  Variable Mapping
+                  <span className="font-normal text-indigo-500 ml-1">· Map each variable to a lead field</span>
+                </p>
+                {nums.map((n) => (
+                  <div key={n} className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 w-10 shrink-0">{`{{${n}}}`}</span>
+                    <span className="text-xs text-gray-400">→</span>
+                    <select
+                      value={metaEditVarMap[n] ?? ""}
+                      onChange={(e) =>
+                        setMetaEditVarMap((prev) => ({ ...prev, [n]: e.target.value }))
+                      }
+                      className={`${INPUT} py-1.5 text-xs flex-1`}
+                    >
+                      {FIELD_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
               Tags <span className="font-normal text-gray-400">· Optional</span>

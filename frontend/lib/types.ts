@@ -38,6 +38,7 @@ export interface Template {
   meta_status?: string;
   meta_language?: string;
   meta_header_image_url?: string;
+  meta_variable_map?: string;
   created_at?: string;
   updated_at?: string;
 }

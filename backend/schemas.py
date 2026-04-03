@@ -134,6 +134,7 @@ class TemplateUpdate(BaseModel):
     name: Optional[str] = None
     body: Optional[str] = None
     tags: Optional[str] = None
+    meta_variable_map: Optional[str] = None
 
 
 class TemplateButtonItem(BaseModel):
@@ -168,6 +169,7 @@ class TemplateResponse(BaseModel):
     meta_status: Optional[str] = None
     meta_language: Optional[str] = None
     meta_header_image_url: Optional[str] = None
+    meta_variable_map: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

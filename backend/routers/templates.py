@@ -15,7 +15,6 @@ META_API_BASE = "https://graph.facebook.com/v19.0"
 
 
 def _get_meta_creds(user_id: int, db: Session):
-    """Return (waba_id, access_token) for the user's Meta session, or raise 400."""
     session = (
         db.query(models.WhatsAppSession)
         .filter(
@@ -30,7 +29,9 @@ def _get_meta_creds(user_id: int, db: Session):
             detail="No active Meta Business API connection. Connect via Meta first.",
         )
 
-    token = cipher_suite.decrypt(session.meta_access_token.encode("utf-8")).decode("utf-8")
+    token = cipher_suite.decrypt(session.meta_access_token.encode("utf-8")).decode(
+        "utf-8"
+    )
 
     # If WABA ID is missing, try to fetch it on the fly from the phone ID
     if not session.meta_waba_id and session.meta_phone_id:
@@ -57,7 +58,8 @@ def _get_meta_creds(user_id: int, db: Session):
     return session.meta_waba_id, token
 
 
-# ─── QR Templates ─────────────────────────────────────────────────────────────
+# QR Templates
+
 
 @router.post("/", response_model=schemas.TemplateResponse)
 def create_template(
@@ -128,9 +130,8 @@ def update_template(
     if not t:
         raise HTTPException(status_code=404, detail="Template not found")
     data = update.model_dump(exclude_unset=True)
-    # For Meta templates only allow local edits (name, tags, body)
     if t.connection_type == "meta":
-        data = {k: v for k, v in data.items() if k in ("name", "tags", "body")}
+        data = {k: v for k, v in data.items() if k in ("name", "tags", "body", "meta_variable_map")}
     for field, value in data.items():
         setattr(t, field, value)
     db.commit()
@@ -162,7 +163,8 @@ def delete_template(
     return {"success": True}
 
 
-# ─── Meta Templates ───────────────────────────────────────────────────────────
+# Meta Templates
+
 
 @router.post("/meta/sync", response_model=List[schemas.TemplateResponse])
 def sync_meta_templates(
@@ -193,7 +195,6 @@ def sync_meta_templates(
 
     for mt in meta_templates:
         meta_name = mt.get("name", "")
-        # Extract body text from components
         body_text = ""
         for comp in mt.get("components", []):
             if comp.get("type") == "BODY":
@@ -215,16 +216,18 @@ def sync_meta_templates(
             existing.meta_language = mt.get("language")
             existing.body = body_text
         else:
-            db.add(models.Template(
-                user_id=current_user.id,
-                name=meta_name.replace("_", " ").title(),
-                body=body_text,
-                connection_type="meta",
-                meta_template_name=meta_name,
-                meta_category=mt.get("category"),
-                meta_status=mt.get("status"),
-                meta_language=mt.get("language"),
-            ))
+            db.add(
+                models.Template(
+                    user_id=current_user.id,
+                    name=meta_name.replace("_", " ").title(),
+                    body=body_text,
+                    connection_type="meta",
+                    meta_template_name=meta_name,
+                    meta_category=mt.get("category"),
+                    meta_status=mt.get("status"),
+                    meta_language=mt.get("language"),
+                )
+            )
 
     db.commit()
     return (
@@ -246,13 +249,9 @@ def create_meta_template(
 ):
     """Submit a new template to Meta for approval and save locally."""
     waba_id, token = _get_meta_creds(current_user.id, db)
-
-    # Build components array
     components = []
 
     if body.header_image_url:
-        # Meta requires a Facebook-uploaded media handle for header_handle — not an external URL.
-        # We declare the IMAGE format without an example; the image URL is used at send time.
         components.append({"type": "HEADER", "format": "IMAGE"})
     elif body.header:
         components.append({"type": "HEADER", "format": "TEXT", "text": body.header})

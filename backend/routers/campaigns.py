@@ -34,9 +34,14 @@ def _resolve_template(body: str, lead: models.Lead) -> str:
     )
 
 
-def _meta_body_params(body: str, lead: models.Lead) -> list:
-    """Extract {{var}} placeholders in order and return resolved Meta parameters."""
-    var_map = {
+def _meta_body_params(body: str, lead: models.Lead, variable_map: dict | None = None) -> list:
+    """Build Meta API body parameters in order.
+
+    For numbered templates ({{1}}, {{2}}, …) the variable_map tells us which
+    lead field each position maps to: {"1": "name", "2": "phone", "3": "email"}.
+    For named templates ({{name}}, {{phone}}, …) we fall back to direct lookup.
+    """
+    lead_field_map = {
         "name": lead.name or "",
         "phone": lead.phone_no or "",
         "email": lead.email or "",
@@ -47,13 +52,25 @@ def _meta_body_params(body: str, lead: models.Lead) -> list:
         "pincode": lead.pincode or "",
         "tags": lead.tags or "",
     }
-    seen = set()
+
+    # Numbered variables: {{1}}, {{2}}, …
+    num_vars = sorted(set(re.findall(r"\{\{(\d+)\}\}", body)), key=int)
+    if num_vars:
+        params = []
+        for num in num_vars:
+            field = (variable_map or {}).get(str(num), "")
+            value = lead_field_map.get(field, "")
+            params.append({"type": "text", "text": value})
+        return params
+
+    # Named variables fallback: {{name}}, {{phone}}, …
+    seen: set = set()
     params = []
     for match in re.finditer(r"\{\{(\w+)\}\}", body):
         var = match.group(1)
-        if var in var_map and var not in seen:
+        if var in lead_field_map and var not in seen:
             seen.add(var)
-            params.append({"type": "text", "text": var_map[var]})
+            params.append({"type": "text", "text": lead_field_map[var]})
     return params
 
 
@@ -128,7 +145,13 @@ def _run_campaign(campaign_id: int, user_id: int):
 
                     if meta_tpl_name:
                         # Send as approved Meta template (works outside 24h window)
-                        params = _meta_body_params(template_body, lead)
+                        variable_map = None
+                        if tmpl and tmpl.meta_variable_map:
+                            try:
+                                variable_map = json.loads(tmpl.meta_variable_map)
+                            except Exception:
+                                pass
+                        params = _meta_body_params(template_body, lead, variable_map)
                         components = (
                             [{"type": "body", "parameters": params}] if params else []
                         )
