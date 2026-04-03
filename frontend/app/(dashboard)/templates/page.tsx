@@ -1129,29 +1129,40 @@ export default function TemplatesPage() {
                   <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
                     Sample values{" "}
                     <span className="font-normal text-indigo-500">
-                      · Select the lead field for each variable
+                      · Type a sample for Meta approval, then pick the lead field for campaigns
                     </span>
                   </p>
-                  {metaVarSamples.map((_val, i) => {
+                  {metaVarSamples.map((val, i) => {
                     const num = String(i + 1);
                     return (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-indigo-500 dark:text-indigo-400 w-8 shrink-0">{`{{${num}}}`}</span>
+                      <div key={i} className="space-y-1.5 pb-2.5 border-b border-indigo-100 dark:border-indigo-800/50 last:border-b-0 last:pb-0">
+                        <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">{`{{${num}}}`}</span>
+                        <input
+                          value={val}
+                          onChange={(e) => {
+                            const next = [...metaVarSamples];
+                            next[i] = e.target.value;
+                            setMetaVarSamples(next);
+                          }}
+                          placeholder="Sample value for Meta approval (e.g. Ramesh Kumar)"
+                          className={`${INPUT} py-1.5 text-xs`}
+                        />
                         <select
                           value={metaVarMap[num] ?? ""}
                           onChange={(e) => {
                             const field = e.target.value;
                             setMetaVarMap((prev) => ({ ...prev, [num]: field }));
-                            const next = [...metaVarSamples];
-                            next[i] = field ? (META_FIELD_SAMPLES[field] ?? field) : "";
-                            setMetaVarSamples(next);
                           }}
-                          className={`${INPUT} py-1.5 text-xs flex-1`}
+                          className={`${INPUT} py-1.5 text-xs`}
                         >
                           {META_FIELD_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                           ))}
                         </select>
+                        <p className="text-[10px] text-indigo-400 dark:text-indigo-500 flex justify-between">
+                          <span>↑ sample sent to Meta for approval</span>
+                          <span>↑ lead field used when sending campaign</span>
+                        </p>
                       </div>
                     );
                   })}
