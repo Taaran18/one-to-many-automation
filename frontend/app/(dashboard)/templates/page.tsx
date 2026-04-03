@@ -1129,10 +1129,10 @@ export default function TemplatesPage() {
                   <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
                     Sample values{" "}
                     <span className="font-normal text-indigo-500">
-                      · Select the lead field, then edit the sample text sent to Meta
+                      · Select the lead field for each variable
                     </span>
                   </p>
-                  {metaVarSamples.map((val, i) => {
+                  {metaVarSamples.map((_val, i) => {
                     const num = String(i + 1);
                     return (
                       <div key={i} className="flex items-center gap-2">
@@ -1142,28 +1142,16 @@ export default function TemplatesPage() {
                           onChange={(e) => {
                             const field = e.target.value;
                             setMetaVarMap((prev) => ({ ...prev, [num]: field }));
-                            if (field && META_FIELD_SAMPLES[field]) {
-                              const next = [...metaVarSamples];
-                              next[i] = META_FIELD_SAMPLES[field];
-                              setMetaVarSamples(next);
-                            }
+                            const next = [...metaVarSamples];
+                            next[i] = field ? (META_FIELD_SAMPLES[field] ?? field) : "";
+                            setMetaVarSamples(next);
                           }}
-                          className={`${INPUT} py-1.5 text-xs w-40 shrink-0`}
+                          className={`${INPUT} py-1.5 text-xs flex-1`}
                         >
                           {META_FIELD_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                           ))}
                         </select>
-                        <input
-                          value={val}
-                          onChange={(e) => {
-                            const next = [...metaVarSamples];
-                            next[i] = e.target.value;
-                            setMetaVarSamples(next);
-                          }}
-                          placeholder="Sample value for Meta approval"
-                          className={`${INPUT} py-1.5 text-xs flex-1`}
-                        />
                       </div>
                     );
                   })}
