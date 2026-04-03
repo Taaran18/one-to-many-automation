@@ -81,6 +81,57 @@ const STATUSES = {
     "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700",
 };
 
+function VarDropdown({ onSelect }: { onSelect: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all"
+      >
+        Insert variable
+        <svg className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 z-50 mt-1 w-52 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
+          <p className="px-3 py-2 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
+            Lead fields
+          </p>
+          {QR_VARS.map((v) => (
+            <button
+              key={v.value}
+              type="button"
+              onClick={() => {
+                onSelect(v.value);
+                setOpen(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors group"
+            >
+              <span className="text-sm text-gray-700 dark:text-gray-200">{v.label}</span>
+              <span className="text-xs font-mono text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 transition-colors">
+                {v.value}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CategoryBadge({ category }: { category?: string }) {
   const cat = CATEGORIES.find((c) => c.value === category);
   if (!cat) return null;
@@ -1368,11 +1419,8 @@ export default function TemplatesPage() {
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
                   Message Body *
                 </label>
-                <select
-                  value=""
-                  onChange={(e) => {
-                    const varStr = e.target.value;
-                    if (!varStr) return;
+                <VarDropdown
+                  onSelect={(varStr) => {
                     const textarea = qrBodyRef.current;
                     if (textarea) {
                       const s = textarea.selectionStart;
@@ -1389,15 +1437,7 @@ export default function TemplatesPage() {
                       setQrForm((f) => ({ ...f, body: f.body + varStr }));
                     }
                   }}
-                  className="text-xs px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 outline-none cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all"
-                >
-                  <option value="">Insert variable…</option>
-                  {QR_VARS.map((v) => (
-                    <option key={v.value} value={v.value}>
-                      {v.label} — {v.value}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <textarea
                 ref={qrBodyRef}
