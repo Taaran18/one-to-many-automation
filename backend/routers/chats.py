@@ -2,18 +2,22 @@
 Chats router — WhatsApp-like inbox.
 
 Endpoints:
-  GET  /chats/contacts          – All leads with any message history (sorted by recency)
-  GET  /chats/messages/{phone}  – Full thread for a phone number
-  POST /chats/send              – Send a freeform message from the inbox
-  POST /chats/webhook/incoming  – Called by WA bridge when a message is received
-  POST /chats/read/{phone}      – Mark all messages from phone as read
+  GET  /chats/contacts              – All leads with any message history (sorted by recency)
+  GET  /chats/messages/{phone}      – Full thread for a phone number
+  POST /chats/send                  – Send a freeform message from the inbox
+  POST /chats/webhook/incoming      – Called by WA bridge (QR) when a message is received
+  GET  /chats/webhook/meta          – Meta webhook subscription verification
+  POST /chats/webhook/meta          – Meta webhook incoming message handler
+  POST /chats/read/{phone}          – Mark all messages from phone as read
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from datetime import datetime, timezone
 from typing import List
+import hmac
+import hashlib
 import httpx
 import os
 import json
@@ -28,6 +32,8 @@ router = APIRouter(prefix="/chats", tags=["chats"])
 
 BRIDGE_URL = os.getenv("BRIDGE_URL", "http://localhost:3001")
 META_API_BASE = "https://graph.facebook.com/v19.0"
+META_WEBHOOK_VERIFY_TOKEN = os.getenv("META_WEBHOOK_VERIFY_TOKEN", "")
+META_WEBHOOK_SECRET = os.getenv("META_WEBHOOK_SECRET", "")
 
 
 def _decrypt(value: str) -> str:
@@ -364,6 +370,120 @@ def incoming_webhook(
         is_read=False,
     )
     db.add(msg)
+    db.commit()
+    return {"success": True}
+
+
+@router.get("/webhook/meta")
+def meta_webhook_verify(request: Request):
+    """
+    Meta calls this GET endpoint to verify the webhook subscription.
+    Responds with hub.challenge when hub.verify_token matches.
+    """
+    mode = request.query_params.get("hub.mode")
+    token = request.query_params.get("hub.verify_token")
+    challenge = request.query_params.get("hub.challenge", "")
+
+    if mode == "subscribe" and token and token == META_WEBHOOK_VERIFY_TOKEN:
+        return Response(content=challenge, media_type="text/plain")
+    raise HTTPException(status_code=403, detail="Verification failed")
+
+
+@router.post("/webhook/meta")
+async def meta_webhook_incoming(request: Request, db: Session = Depends(get_db)):
+    """
+    Meta sends incoming WhatsApp messages here.
+    Validates X-Hub-Signature-256 (when META_WEBHOOK_SECRET is set),
+    finds the user by meta_phone_id, and stores the message.
+    """
+    raw_body = await request.body()
+
+    # Validate HMAC signature when secret is configured
+    if META_WEBHOOK_SECRET:
+        sig_header = request.headers.get("X-Hub-Signature-256", "")
+        expected = "sha256=" + hmac.new(
+            META_WEBHOOK_SECRET.encode(), raw_body, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(sig_header, expected):
+            raise HTTPException(status_code=403, detail="Invalid signature")
+
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # Meta always sends object="whatsapp_business_account"
+    if payload.get("object") != "whatsapp_business_account":
+        return {"success": True}
+
+    for entry in payload.get("entry", []):
+        for change in entry.get("changes", []):
+            if change.get("field") != "messages":
+                continue
+            value = change.get("value", {})
+
+            phone_number_id = value.get("metadata", {}).get("phone_number_id")
+            if not phone_number_id:
+                continue
+
+            # Map phone_number_id → user via their WhatsApp session
+            wa_session = (
+                db.query(models.WhatsAppSession)
+                .filter(models.WhatsAppSession.meta_phone_id == phone_number_id)
+                .first()
+            )
+            if not wa_session:
+                continue
+
+            for msg in value.get("messages", []):
+                msg_type = msg.get("type", "text")
+                from_phone = _normalize_phone(msg.get("from", ""))
+                wa_message_id = msg.get("id")
+
+                # Extract body based on message type
+                if msg_type == "text":
+                    body = msg.get("text", {}).get("body", "")
+                elif msg_type == "image":
+                    caption = msg.get("image", {}).get("caption", "")
+                    body = f"[Image] {caption}".strip() if caption else "[Image]"
+                elif msg_type == "audio":
+                    body = "[Audio message]"
+                elif msg_type == "video":
+                    caption = msg.get("video", {}).get("caption", "")
+                    body = f"[Video] {caption}".strip() if caption else "[Video]"
+                elif msg_type == "document":
+                    filename = msg.get("document", {}).get("filename", "")
+                    body = f"[Document: {filename}]" if filename else "[Document]"
+                elif msg_type == "location":
+                    loc = msg.get("location", {})
+                    body = f"[Location: {loc.get('latitude')}, {loc.get('longitude')}]"
+                elif msg_type == "sticker":
+                    body = "[Sticker]"
+                else:
+                    body = f"[{msg_type}]"
+
+                if not from_phone or not body:
+                    continue
+
+                # Deduplicate by wa_message_id
+                if wa_message_id:
+                    existing = (
+                        db.query(models.IncomingMessage)
+                        .filter(models.IncomingMessage.wa_message_id == wa_message_id)
+                        .first()
+                    )
+                    if existing:
+                        continue
+
+                incoming = models.IncomingMessage(
+                    user_id=wa_session.user_id,
+                    phone_no=from_phone,
+                    body=body,
+                    wa_message_id=wa_message_id,
+                    is_read=False,
+                )
+                db.add(incoming)
+
     db.commit()
     return {"success": True}
 
