@@ -4,6 +4,7 @@ const qrcode = require("qrcode");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
+const https = require("https");
 
 // Prevent Chrome crashes from killing the process
 process.on("uncaughtException", (err) => {
@@ -139,9 +140,10 @@ async function createSession(userId) {
         wa_message_id: msg.id ? msg.id._serialized : null,
       });
       const url = new URL(`${backendUrl}/chats/webhook/incoming`);
+      const isHttps = url.protocol === "https:";
       const options = {
         hostname: url.hostname,
-        port: url.port || 80,
+        port: url.port || (isHttps ? 443 : 80),
         path: url.pathname,
         method: "POST",
         headers: {
@@ -149,7 +151,8 @@ async function createSession(userId) {
           "Content-Length": Buffer.byteLength(payload),
         },
       };
-      const req = http.request(options);
+      const transport = isHttps ? https : http;
+      const req = transport.request(options);
       req.on("error", (e) => console.error(`[user ${id}] Webhook error:`, e.message));
       req.write(payload);
       req.end();
