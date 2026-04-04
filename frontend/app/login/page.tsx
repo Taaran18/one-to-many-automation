@@ -286,7 +286,7 @@ export default function LoginPage() {
                 <h1 className="text-2xl font-bold text-gray-900">
                   {isLogin ? "Welcome back" : "Create account"}
                 </h1>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-gray-500 mt-1">
                   {isLogin
                     ? "Sign in to your OneToMany dashboard"
                     : "Start your WhatsApp automation journey"}
