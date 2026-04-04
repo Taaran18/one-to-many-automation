@@ -161,8 +161,16 @@ export default function ChatsPage() {
   const [mobileShowChat, setMobileShowChat] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const shouldForceScrollRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isNearBottom = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
 
   /* ── Fetch contacts ── */
   const fetchContacts = useCallback(async () => {
@@ -214,11 +222,15 @@ export default function ChatsPage() {
 
   /* ── Auto-scroll ── */
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (shouldForceScrollRef.current || isNearBottom()) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    shouldForceScrollRef.current = false;
   }, [messages]);
 
   /* ── Select contact ── */
   const handleSelectContact = (contact: ChatContact) => {
+    shouldForceScrollRef.current = true;
     setSelectedContact(contact);
     setMessages([]);
     setSendError(null);
@@ -234,6 +246,7 @@ export default function ChatsPage() {
     setSendError(null);
     try {
       await apiPost("/chats/send", { phone_no: selectedContact.phone_no, body });
+      shouldForceScrollRef.current = true;
       // Optimistic append
       setMessages((prev) => [
         ...prev,
@@ -305,7 +318,7 @@ export default function ChatsPage() {
           </div>
           {/* Search */}
           <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -433,6 +446,7 @@ export default function ChatsPage() {
 
             {/* Messages Area */}
             <div
+              ref={messagesContainerRef}
               className="flex-1 overflow-y-auto px-4 py-4 space-y-1 bg-[#f0f2f5] dark:bg-[#0b141a]"
               style={{
                 backgroundImage:
