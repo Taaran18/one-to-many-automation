@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { apiGet, apiPost } from "@/lib/api";
-import type { ChatContact, ChatMessage } from "@/lib/types";
+import type { ChatContact, ChatMessage, Lead } from "@/lib/types";
 
 /* ─── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -163,12 +163,19 @@ export default function ChatsPage() {
   const [chatSearch, setChatSearch] = useState("");
   const [chatSearchOpen, setChatSearchOpen] = useState(false);
 
+  // New-chat leads panel
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
+  const [leadsSearch, setLeadsSearch] = useState("");
+  const [leadsLoading, setLeadsLoading] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const shouldForceScrollRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatSearchInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const newChatRef = useRef<HTMLDivElement>(null);
 
   const isNearBottom = () => {
     const el = messagesContainerRef.current;
@@ -193,6 +200,40 @@ export default function ChatsPage() {
     const interval = setInterval(fetchContacts, 5000);
     return () => clearInterval(interval);
   }, [fetchContacts]);
+
+  /* ── Fetch all leads for new-chat panel ── */
+  const fetchAllLeads = useCallback(async () => {
+    setLeadsLoading(true);
+    try {
+      const data = await apiGet<Lead[]>("/leads/?limit=200");
+      setAllLeads(data);
+    } catch {
+      /* silent */
+    } finally {
+      setLeadsLoading(false);
+    }
+  }, []);
+
+  // Open new-chat panel: fetch leads each time so new ones appear
+  const handleOpenNewChat = () => {
+    setNewChatOpen((prev) => {
+      if (!prev) fetchAllLeads();
+      return !prev;
+    });
+    setLeadsSearch("");
+  };
+
+  // Close on outside click
+  useEffect(() => {
+    if (!newChatOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (newChatRef.current && !newChatRef.current.contains(e.target as Node)) {
+        setNewChatOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [newChatOpen]);
 
   /* ── Fetch messages for selected contact ── */
   const fetchMessages = useCallback(
@@ -320,12 +361,102 @@ export default function ChatsPage() {
         <div className="px-4 pt-5 pb-3 bg-white dark:bg-[#202c33] border-b border-gray-100 dark:border-gray-800/60">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">Chats</h1>
-            <div className="flex items-center gap-1">
-              <button className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all">
+            <div className="flex items-center gap-1 relative" ref={newChatRef}>
+              <button
+                onClick={handleOpenNewChat}
+                title="New chat"
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                  newChatOpen
+                    ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/20"
+                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                }`}
+              >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
+
+              {/* ── Leads panel ── */}
+              {newChatOpen && (
+                <div className="absolute top-10 right-0 z-50 w-72 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1f2c34] overflow-hidden flex flex-col" style={{ maxHeight: 420 }}>
+                  {/* Panel header */}
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700/60 bg-gray-50 dark:bg-[#202c33]">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">New Chat — All Leads</p>
+                    <div className="relative">
+                      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Search leads…"
+                        value={leadsSearch}
+                        onChange={(e) => setLeadsSearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-white dark:bg-[#2a3942] text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 border border-gray-200 dark:border-gray-600/50 focus:ring-2 focus:ring-indigo-400/50 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Lead list */}
+                  <div className="overflow-y-auto flex-1">
+                    {leadsLoading ? (
+                      <div className="flex flex-col gap-2 p-3">
+                        {[...Array(4)].map((_, i) => (
+                          <div key={i} className="flex items-center gap-2 animate-pulse">
+                            <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0" />
+                            <div className="flex-1 space-y-1.5">
+                              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />
+                              <div className="h-2.5 bg-gray-100 dark:bg-gray-800 rounded w-1/2" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (() => {
+                      const q = leadsSearch.toLowerCase();
+                      const filtered = allLeads.filter(
+                        (l) =>
+                          l.name.toLowerCase().includes(q) ||
+                          l.phone_no.includes(q) ||
+                          (l.email ?? "").toLowerCase().includes(q)
+                      );
+                      if (filtered.length === 0) {
+                        return (
+                          <p className="text-xs text-center text-gray-400 dark:text-gray-500 py-8 px-4">
+                            {allLeads.length === 0 ? "No leads found. Add leads first." : "No leads match your search."}
+                          </p>
+                        );
+                      }
+                      return filtered.map((lead) => {
+                        const initials = getInitials(lead.name);
+                        const color = getAvatarColor(lead.name);
+                        return (
+                          <button
+                            key={lead.id}
+                            onClick={() => {
+                              handleSelectContact({
+                                lead_id: lead.id,
+                                name: lead.name,
+                                phone_no: lead.phone_no,
+                                unread_count: 0,
+                              });
+                              setNewChatOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#1e2b33] transition-colors text-left border-b border-gray-50 dark:border-gray-800/40 last:border-0"
+                          >
+                            <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${color} flex items-center justify-center shrink-0 shadow-sm`}>
+                              <span className="text-xs font-bold text-white">{initials}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{lead.name}</p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{lead.phone_no}</p>
+                            </div>
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           {/* Search */}
