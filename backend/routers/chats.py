@@ -178,6 +178,7 @@ def get_messages(
     current_user: models.User = Depends(get_current_user),
 ):
     """Return the full chat thread for a given phone number (both directions)."""
+    norm_phone = _normalize_phone(phone_no)
     # Find corresponding lead for this user
     lead = (
         db.query(models.Lead)
@@ -227,7 +228,7 @@ def get_messages(
         db.query(models.IncomingMessage)
         .filter(
             models.IncomingMessage.user_id == current_user.id,
-            models.IncomingMessage.phone_no == phone_no,
+            models.IncomingMessage.phone_no == norm_phone,
         )
         .order_by(models.IncomingMessage.received_at.asc())
         .all()
@@ -346,6 +347,8 @@ def incoming_webhook(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    norm_phone = _normalize_phone(payload.phone_no)
+
     # Deduplicate by wa_message_id
     if payload.wa_message_id:
         existing = (
@@ -358,7 +361,7 @@ def incoming_webhook(
 
     msg = models.IncomingMessage(
         user_id=payload.user_id,
-        phone_no=payload.phone_no,
+        phone_no=norm_phone,
         body=payload.body,
         wa_message_id=payload.wa_message_id,
         is_read=False,
