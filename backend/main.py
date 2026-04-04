@@ -59,7 +59,7 @@ app.include_router(chats.router)
 # Core Auth Endpoints
 @app.get("/")
 async def root():
-    return {"status": "success", "message": "OneToMany Automation API"}
+    return {"status": "success", "message": "OneToMany Automation API", "version": "1.0"}
 
 
 @app.post("/upload/image")
