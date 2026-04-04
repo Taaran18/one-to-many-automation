@@ -160,10 +160,14 @@ export default function ChatsPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
 
+  const [chatSearch, setChatSearch] = useState("");
+  const [chatSearchOpen, setChatSearchOpen] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const shouldForceScrollRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const chatSearchInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isNearBottom = () => {
@@ -235,6 +239,8 @@ export default function ChatsPage() {
     setMessages([]);
     setSendError(null);
     setMobileShowChat(true);
+    setChatSearch("");
+    setChatSearchOpen(false);
   };
 
   /* ── Send message ── */
@@ -282,11 +288,17 @@ export default function ChatsPage() {
       c.phone_no.includes(search)
   );
 
+  /* ── Filter messages by chat search ── */
+  const chatSearchLower = chatSearch.toLowerCase();
+  const visibleMessages = chatSearch
+    ? messages.filter((m) => getDisplayBody(m).toLowerCase().includes(chatSearchLower))
+    : messages;
+
   /* ── Group messages by date ── */
   type MessageOrDivider = ChatMessage | { type: "divider"; date: string; key: string };
   const groupedMessages: MessageOrDivider[] = [];
   let lastDate = "";
-  for (const msg of messages) {
+  for (const msg of visibleMessages) {
     const day = msg.timestamp ? new Date(msg.timestamp).toDateString() : "";
     if (day && day !== lastDate) {
       groupedMessages.push({ type: "divider", date: formatSectionDate(msg.timestamp), key: `div-${day}` });
@@ -431,18 +443,54 @@ export default function ChatsPage() {
               </div>
               {/* Actions */}
               <div className="flex items-center gap-1">
-                <button className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all" title="Search in chat">
+                <button
+                  onClick={() => {
+                    setChatSearchOpen((o) => {
+                      if (o) { setChatSearch(""); }
+                      else { setTimeout(() => chatSearchInputRef.current?.focus(), 50); }
+                      return !o;
+                    });
+                  }}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all ${chatSearchOpen ? "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"}`}
+                  title="Search in chat"
+                >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </button>
-                <button className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all" title="More options">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </div>
+            </div>
+
+            {/* Chat search bar */}
+            {chatSearchOpen && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#202c33] border-b border-gray-100 dark:border-gray-800/60">
+                <svg className="w-4 h-4 text-gray-400 shrink-0 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  ref={chatSearchInputRef}
+                  type="text"
+                  value={chatSearch}
+                  onChange={(e) => setChatSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") { setChatSearch(""); setChatSearchOpen(false); } }}
+                  placeholder="Search messages…"
+                  className="flex-1 text-sm bg-transparent text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none"
+                />
+                {chatSearch && (
+                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                    {visibleMessages.length} result{visibleMessages.length !== 1 ? "s" : ""}
+                  </span>
+                )}
+                <button
+                  onClick={() => { setChatSearch(""); setChatSearchOpen(false); }}
+                  className="w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all shrink-0"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-            </div>
+            )}
 
             {/* Messages Area */}
             <div
@@ -463,14 +511,16 @@ export default function ChatsPage() {
                     ))}
                   </div>
                 </div>
-              ) : messages.length === 0 ? (
+              ) : groupedMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
                   <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-500/10 flex items-center justify-center">
                     <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">No messages yet. Send the first one!</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {chatSearch ? `No messages matching "${chatSearch}"` : "No messages yet. Send the first one!"}
+                  </p>
                 </div>
               ) : (
                 groupedMessages.map((item, idx) => {
