@@ -8,9 +8,19 @@
 'use strict';
 
 const { PrismaClient } = require('@prisma/client');
-const config = require('../config');
+const { PrismaPg }     = require('@prisma/adapter-pg');
+const { Pool }         = require('pg');
+const config           = require('../config');
+
+// Use the pg driver adapter so Prisma runs entirely inside Node.js
+// without spawning a separate Rust binary process.
+// This is required for shared hosting environments (e.g. Hostinger)
+// where forking child processes is restricted.
+const pool   = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({
+  adapter,
   log: config.isDev ? ['warn', 'error'] : ['error'],
 });
 

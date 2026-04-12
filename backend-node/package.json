@@ -13,7 +13,9 @@
     "install:chrome": "npx puppeteer browsers install chrome"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^5.22.0",
     "@prisma/client": "^5.22.0",
+    "pg": "^8.13.0",
     "axios": "^1.7.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
