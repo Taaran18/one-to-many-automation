@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
@@ -488,6 +488,27 @@ export default function CampaignsPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Auto-refresh while any campaign is running
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    const hasRunning = campaigns.some(c => c.status === "running");
+    if (hasRunning && !pollRef.current) {
+      pollRef.current = setInterval(() => {
+        load().then(() => {
+          if (!campaigns.some(c => c.status === "running")) {
+            clearInterval(pollRef.current!);
+            pollRef.current = null;
+          }
+        });
+      }, 2000);
+    }
+    if (!hasRunning && pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  }, [campaigns]);
 
   const buildRecurrenceConfig = (recurrence: string, days: number[], monthDay: number) => {
     if (recurrence === "weekly" && days.length > 0) {

@@ -152,6 +152,9 @@ export default function WhatsAppStatusButton({
           clearInterval(iv);
         } else if (d.qr) {
           setQr(d.qr);
+        } else {
+          // qr_pending but no QR image — Baileys is reconnecting after scan, show spinner
+          setQr(null);
         }
       } catch {}
     }, 3000);
@@ -482,7 +485,7 @@ export default function WhatsAppStatusButton({
                                 />
                               </svg>
                               <p className="text-xs text-red-400 text-center px-4">
-                                Bridge failed to start Chrome.
+                                Failed to generate QR.
                                 <br />
                                 Try again in a moment.
                               </p>

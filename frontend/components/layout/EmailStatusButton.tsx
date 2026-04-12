@@ -25,10 +25,12 @@ const EMAIL_ICON = (
   </svg>
 );
 
-export default function EmailStatusButton({ compact = false }: { compact?: boolean }) {
+export default function EmailStatusButton({ compact = false, hideButton = false, forceOpen = false, onOpen }: { compact?: boolean; hideButton?: boolean; forceOpen?: boolean; onOpen?: () => void }) {
   const [status, setStatus]           = useState<"connected" | "disconnected" | "loading">("loading");
   const [emailAddr, setEmailAddr]     = useState("");
   const [open, setOpen]               = useState(false);
+
+  useEffect(() => { if (forceOpen) setOpen(true); }, [forceOpen]);
   const [connecting, setConnecting]   = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [connectError, setConnectError]   = useState("");
@@ -74,6 +76,8 @@ export default function EmailStatusButton({ compact = false }: { compact?: boole
       setStatus("connected");
       setEmailAddr(formEmail.trim());
       setFormPassword("");
+      setOpen(false);
+      onOpen?.();
     } catch (err: unknown) {
       setConnectError(err instanceof Error ? err.message : "Connection failed");
     } finally {
@@ -102,6 +106,7 @@ export default function EmailStatusButton({ compact = false }: { compact?: boole
     <>
       <button
         onClick={() => setOpen(true)}
+        style={hideButton ? { display: 'none' } : undefined}
         className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
           isConnected
             ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"

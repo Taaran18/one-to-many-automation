@@ -6,6 +6,7 @@ import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import WhatsAppStatusButton from "@/components/layout/WhatsAppStatusButton";
 import EmailBuilder, { type Block, makeBlock, parseBuilderState, generateEmailHtml, generatePlainText } from "@/components/EmailBuilder";
+import EmailStatusButton from "@/components/layout/EmailStatusButton";
 import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from "@/lib/api";
 import type { Template, WAStatus } from "@/lib/types";
 
@@ -187,6 +188,8 @@ export default function TemplatesPage() {
   const [channel, setChannel] = useState<"all" | "whatsapp" | "email">("all");
   const [waType, setWaType] = useState<"qr" | "meta">("qr");
   const [waConnected, setWaConnected] = useState(false);
+  const [emailConnected, setEmailConnected] = useState(false);
+  const [emailForceOpen, setEmailForceOpen] = useState(false);
   const [waForceOpen, setWaForceOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -257,12 +260,14 @@ export default function TemplatesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [status, tmpl] = await Promise.all([
+      const [status, emailStatus, tmpl] = await Promise.all([
         apiGet<WAStatus>("/whatsapp/status"),
+        apiGet<{ status: string }>("/email/status"),
         apiGet<Template[]>("/templates/"),
       ]);
       setWaType(status.wa_type ?? "qr");
       setWaConnected(status.status === "connected");
+      setEmailConnected(emailStatus.status === "connected");
       setTemplates(tmpl);
     } catch {
     } finally {
@@ -279,11 +284,15 @@ export default function TemplatesPage() {
   // Filter templates by current channel + mode
   const visibleTemplates =
     channel === "all"
-      ? [...templates].sort((a, b) => {
-          // Email first, then WA
-          const rank = (t: Template) => t.connection_type === "email" ? 0 : 1;
-          return rank(a) - rank(b) || (a.created_at ?? "").localeCompare(b.created_at ?? "");
-        })
+      ? [...templates]
+          .filter((t) => {
+            if (t.connection_type === "email") return emailConnected;
+            return waConnected; // qr or meta
+          })
+          .sort((a, b) => {
+            const rank = (t: Template) => t.connection_type === "email" ? 0 : 1;
+            return rank(a) - rank(b) || (a.created_at ?? "").localeCompare(b.created_at ?? "");
+          })
       : channel === "email"
         ? templates.filter((t) => t.connection_type === "email")
         : templates.filter((t) =>
@@ -580,50 +589,109 @@ export default function TemplatesPage() {
     );
   }
 
-  if (!waConnected && channel === "whatsapp") {
+  // Shared tab switcher used in gate screens — identical to main header
+  const TabSwitcher = () => (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      <div className="min-w-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Templates</h1>
+        <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5 hidden sm:block">
+          {channel === "whatsapp" ? "WhatsApp templates" : "Email templates"}
+        </p>
+      </div>
+      <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl shrink-0">
+        {(["all", "whatsapp", "email"] as const).map((tab) => {
+          const active = channel === tab;
+          const label = tab === "all" ? "All" : tab === "whatsapp" ? "WhatsApp" : "Email";
+          const count = tab === "all" ? templates.length : tab === "whatsapp" ? templates.filter(t => t.connection_type !== "email").length : templates.filter(t => t.connection_type === "email").length;
+          return (
+            <button
+              key={tab}
+              onClick={() => setChannel(tab)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+                active
+                  ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              }`}
+            >
+              {tab === "all" && (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              )}
+              {tab === "whatsapp" && (
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+              )}
+              {tab === "email" && (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              )}
+              <span className="hidden sm:inline">{label}</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                active ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"
+                       : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+              }`}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div />
+    </div>
+  );
+
+  // Gate: WhatsApp tab requires WA connection
+  if (channel === "whatsapp" && !waConnected) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-6">
-        {/* Channel tab switcher (shown even on not-connected screen) */}
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 z-10">
-          <button onClick={() => setChannel("whatsapp")} className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm">WhatsApp</button>
-          <button onClick={() => setChannel("email")} className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Email</button>
-        </div>
-        <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-          <svg
-            className="w-8 h-8 text-gray-400 dark:text-gray-500"
-            viewBox="0 0 24 24"
-            fill="currentColor"
+      <div className="space-y-6">
+        <TabSwitcher />
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+            <svg className="w-7 h-7 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z" />
+              <path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.786 23.214l4.297-1.376A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.25 0-4.348-.634-6.131-1.733l-.44-.262-2.551.818.832-2.487-.287-.468A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Connect WhatsApp first</h2>
+            <p className="text-sm text-gray-400 mt-1 max-w-xs">Connect via QR scan or Meta Business API to view and create WhatsApp templates.</p>
+          </div>
+          <button
+            onClick={() => { setWaForceOpen(true); setTimeout(() => setWaForceOpen(false), 200); }}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition-all"
           >
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z" />
-            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.786 23.214l4.297-1.376A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.25 0-4.348-.634-6.131-1.733l-.44-.262-2.551.818.832-2.487-.287-.468A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
-          </svg>
+            Connect WhatsApp
+          </button>
+          <WhatsAppStatusButton hideButton forceOpen={waForceOpen} onOpen={load} />
         </div>
-        <div className="text-center">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-            Connect WhatsApp first
-          </h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1 max-w-xs">
-            You need an active WhatsApp connection to view and create templates.
-          </p>
+      </div>
+    );
+  }
+
+  // Gate: Email tab requires email connection
+  if (channel === "email" && !emailConnected) {
+    return (
+      <div className="space-y-6">
+        <TabSwitcher />
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+            <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Connect Email first</h2>
+            <p className="text-sm text-gray-400 mt-1 max-w-xs">Set up your SMTP email account to view and create email templates.</p>
+          </div>
+          <button
+            onClick={() => { setEmailForceOpen(true); setTimeout(() => setEmailForceOpen(false), 200); }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-all"
+          >
+            Connect Email
+          </button>
+          <EmailStatusButton hideButton forceOpen={emailForceOpen} onOpen={load} />
         </div>
-        <button
-          onClick={() => {
-            setWaForceOpen(true);
-            setTimeout(() => setWaForceOpen(false), 200);
-          }}
-          className="flex items-center gap-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-all hover:shadow-lg hover:shadow-indigo-500/25"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z" />
-            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.786 23.214l4.297-1.376A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.25 0-4.348-.634-6.131-1.733l-.44-.262-2.551.818.832-2.487-.287-.468A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
-          </svg>
-          Connect WhatsApp
-        </button>
-        <WhatsAppStatusButton
-          hideButton
-          forceOpen={waForceOpen}
-          onOpen={load}
-        />
       </div>
     );
   }
@@ -753,6 +821,40 @@ export default function TemplatesPage() {
           ? "You are connected via Meta Business API. Templates require Meta approval before use."
           : "You are connected via QR Code. Templates are sent directly without approval."}
       </div>
+      )}
+
+      {/* All tab: banners for disconnected channels */}
+      {channel === "all" && (!waConnected || !emailConnected) && (
+        <div className="flex flex-col gap-2">
+          {!waConnected && (
+            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm">
+              <span className="text-amber-800 dark:text-amber-300">WhatsApp not connected</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => { setWaForceOpen(true); setTimeout(() => setWaForceOpen(false), 200); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition-all"
+                >
+                  Connect WhatsApp
+                </button>
+                <WhatsAppStatusButton hideButton forceOpen={waForceOpen} onOpen={load} />
+              </div>
+            </div>
+          )}
+          {!emailConnected && (
+            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm">
+              <span className="text-amber-800 dark:text-amber-300">Email not connected</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => { setEmailForceOpen(true); setTimeout(() => setEmailForceOpen(false), 200); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-all"
+                >
+                  Connect Email
+                </button>
+                <EmailStatusButton hideButton forceOpen={emailForceOpen} onOpen={load} />
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {visibleTemplates.length === 0 ? (
@@ -1016,9 +1118,9 @@ export default function TemplatesPage() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        wide={(isMetaMode && channel === "whatsapp") || (channel === "email" && emailHtmlMode)}
+        wide={(isMetaMode && channel === "whatsapp") || ((channel === "email" || editing?.connection_type === "email") && emailHtmlMode)}
         title={
-          channel === "email"
+          (channel === "email" || editing?.connection_type === "email")
             ? editing ? "Edit Email Template" : "New Email Template"
             : isMetaMode
               ? "New Meta Template"
@@ -1027,7 +1129,7 @@ export default function TemplatesPage() {
                 : "New Template"
         }
       >
-        {channel === "email" ? (
+        {(channel === "email" || editing?.connection_type === "email") ? (
           /* ── Email Template Form ── */
           <form onSubmit={handleSaveEmail} className="flex flex-col gap-3 flex-1 min-h-0">
             {/* Top fields — always visible, never scroll away */}

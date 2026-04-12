@@ -89,6 +89,9 @@ async function createSession(userId) {
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+    // Ignore events from stale sockets (can fire after sock.end() during reconnect)
+    if (sessions.get(id)?.sock !== sock) return;
+
     if (qr) {
       try {
         session.qrBase64 = await qrcode.toDataURL(qr);
@@ -124,11 +127,16 @@ async function createSession(userId) {
         session.info   = null;
         sessions.delete(id);
       } else {
-        // Auto-reconnect for transient disconnects
+        // Auto-reconnect for transient disconnects (e.g. code 515 after first QR scan)
         console.log(`[wa-bridge] [user ${id}] Reconnecting in 3s...`);
-        setTimeout(() => createSession(id).catch(e =>
-          console.error(`[wa-bridge] [user ${id}] Reconnect error:`, e.message)
-        ), 3000);
+        setTimeout(() => {
+          // Only reconnect if this sock is still the active one
+          if (sessions.get(id)?.sock === sock) {
+            createSession(id).catch(e =>
+              console.error(`[wa-bridge] [user ${id}] Reconnect error:`, e.message)
+            );
+          }
+        }, 3000);
       }
     }
   });

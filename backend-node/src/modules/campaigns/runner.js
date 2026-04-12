@@ -245,7 +245,15 @@ async function runCampaign(campaignId, userId) {
       }
     }
 
-    await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'completed' } });
+    // Set final status based on actual send results
+    const logCounts = await prisma.messageLog.groupBy({
+      by: ['status'],
+      where: { campaign_id: campaignId, run_number: currentRun },
+      _count: { status: true },
+    });
+    const sentCount   = logCounts.find(r => r.status === 'sent')?._count?.status ?? 0;
+    const finalStatus = sentCount > 0 ? 'completed' : 'failed';
+    await prisma.campaign.update({ where: { id: campaignId }, data: { status: finalStatus } });
   } catch (err) {
     console.error(`[runner] Campaign ${campaignId} failed:`, err.message);
     await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'failed' } }).catch(() => {});
