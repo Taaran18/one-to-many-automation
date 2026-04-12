@@ -32,13 +32,15 @@ export interface Template {
   name: string;
   body: string;
   tags?: string;
-  connection_type?: "qr" | "meta";
+  connection_type?: "qr" | "meta" | "email";
   meta_template_name?: string;
   meta_category?: string;
   meta_status?: string;
   meta_language?: string;
   meta_header_image_url?: string;
   meta_variable_map?: string;
+  email_subject?: string;
+  email_html?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -47,6 +49,7 @@ export interface Campaign {
   id: number;
   user_id: number;
   name: string;
+  channel?: "whatsapp" | "email";
   template_id?: number;
   lead_group_id?: number;
   lead_group_ids?: number[];
@@ -73,6 +76,7 @@ export interface MessageLog {
   error_message?: string;
   lead_name?: string;
   lead_phone?: string;
+  lead_email?: string;
   run_number?: number;
 }
 
@@ -85,6 +89,13 @@ export interface DashboardStats {
   messages_sent_this_month: number;
   total_customers: number;
   total_prospects: number;
+  // Channel breakdown
+  wa_campaigns: number;
+  email_campaigns: number;
+  wa_sent_this_month: number;
+  email_sent_this_month: number;
+  wa_status: "connected" | "disconnected" | "qr_pending";
+  email_status: "connected" | "disconnected";
 }
 
 export interface ChartDataPoint {
@@ -99,6 +110,28 @@ export interface ScheduleItem {
   scheduled_at?: string;
   lead_group_name?: string;
   template_name?: string;
+}
+
+export interface EmailContact {
+  lead_id: number;
+  name: string;
+  email: string;
+  last_subject: string;
+  last_message_at?: string;
+  last_snippet: string;
+}
+
+export interface EmailMessage {
+  id: number;
+  campaign_id: number;
+  campaign_name: string;
+  status: string;
+  sent_at?: string;
+  error_message?: string;
+  subject: string;
+  text: string;
+  html: string;
+  direction: "outbound";
 }
 
 export interface WAStatus {

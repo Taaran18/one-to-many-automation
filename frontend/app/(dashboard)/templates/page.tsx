@@ -5,6 +5,7 @@ import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import WhatsAppStatusButton from "@/components/layout/WhatsAppStatusButton";
+import EmailBuilder, { type Block, makeBlock, parseBuilderState, generateEmailHtml, generatePlainText } from "@/components/EmailBuilder";
 import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from "@/lib/api";
 import type { Template, WAStatus } from "@/lib/types";
 
@@ -183,6 +184,7 @@ function StatusBadge({ status }: { status?: string }) {
 }
 
 export default function TemplatesPage() {
+  const [channel, setChannel] = useState<"all" | "whatsapp" | "email">("all");
   const [waType, setWaType] = useState<"qr" | "meta">("qr");
   const [waConnected, setWaConnected] = useState(false);
   const [waForceOpen, setWaForceOpen] = useState(false);
@@ -197,6 +199,15 @@ export default function TemplatesPage() {
 
   // QR form
   const [qrForm, setQrForm] = useState({ name: "", body: "", tags: "" });
+
+  // Email form
+  const [emailForm, setEmailForm] = useState({ name: "", subject: "", body: "", email_html: "", tags: "" });
+  const [emailHtmlMode, setEmailHtmlMode] = useState(false);
+  const [emailPreview, setEmailPreview] = useState(false);
+  // Email builder (visual HTML editor)
+  const [emailBlocks, setEmailBlocks] = useState<Block[]>([]);
+  const [emailBgColor, setEmailBgColor] = useState("#f5f5f5");
+  const [emailContainerBg, setEmailContainerBg] = useState("#ffffff");
   // Meta create form
   const [metaForm, setMetaForm] = useState({
     name: "",
@@ -246,14 +257,13 @@ export default function TemplatesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const status = await apiGet<WAStatus>("/whatsapp/status");
+      const [status, tmpl] = await Promise.all([
+        apiGet<WAStatus>("/whatsapp/status"),
+        apiGet<Template[]>("/templates/"),
+      ]);
       setWaType(status.wa_type ?? "qr");
-      const connected = status.status === "connected";
-      setWaConnected(connected);
-      if (connected) {
-        const tmpl = await apiGet<Template[]>("/templates/");
-        setTemplates(tmpl);
-      }
+      setWaConnected(status.status === "connected");
+      setTemplates(tmpl);
     } catch {
     } finally {
       setLoading(false);
@@ -266,14 +276,29 @@ export default function TemplatesPage() {
 
   const isMetaMode = waType === "meta";
 
-  // Filter templates by current mode
-  const visibleTemplates = templates.filter((t) =>
-    isMetaMode ? t.connection_type === "meta" : t.connection_type !== "meta",
-  );
+  // Filter templates by current channel + mode
+  const visibleTemplates =
+    channel === "all"
+      ? [...templates].sort((a, b) => {
+          // Email first, then WA
+          const rank = (t: Template) => t.connection_type === "email" ? 0 : 1;
+          return rank(a) - rank(b) || (a.created_at ?? "").localeCompare(b.created_at ?? "");
+        })
+      : channel === "email"
+        ? templates.filter((t) => t.connection_type === "email")
+        : templates.filter((t) =>
+            isMetaMode ? t.connection_type === "meta" : t.connection_type !== "meta" && t.connection_type !== "email",
+          );
 
   const openNew = () => {
     setEditing(null);
     setQrForm({ name: "", body: "", tags: "" });
+    setEmailForm({ name: "", subject: "", body: "", email_html: "", tags: "" });
+    setEmailHtmlMode(false);
+    setEmailPreview(false);
+    setEmailBlocks([makeBlock("heading"), makeBlock("text"), makeBlock("button")]);
+    setEmailBgColor("#f5f5f5");
+    setEmailContainerBg("#ffffff");
     setMetaForm({
       name: "",
       meta_template_name: "",
@@ -379,8 +404,50 @@ export default function TemplatesPage() {
 
   const openEdit = (t: Template) => {
     setEditing(t);
-    setQrForm({ name: t.name, body: t.body, tags: t.tags ?? "" });
+    if (t.connection_type === "email") {
+      setEmailForm({ name: t.name, subject: t.email_subject ?? "", body: t.body, email_html: t.email_html ?? "", tags: t.tags ?? "" });
+      const parsed = parseBuilderState(t.email_html ?? "");
+      if (parsed) {
+        setEmailBlocks(parsed.blocks);
+        setEmailBgColor(parsed.bgColor);
+        setEmailContainerBg(parsed.containerBg);
+        setEmailHtmlMode(true);
+      } else {
+        setEmailBlocks([makeBlock("heading"), makeBlock("text"), makeBlock("button")]);
+        setEmailBgColor("#f5f5f5");
+        setEmailContainerBg("#ffffff");
+        setEmailHtmlMode(!!t.email_html);
+      }
+      setEmailPreview(false);
+    } else {
+      setQrForm({ name: t.name, body: t.body, tags: t.tags ?? "" });
+    }
     setOpen(true);
+  };
+
+  const handleSaveEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const builtHtml = emailHtmlMode ? generateEmailHtml(emailBlocks, emailBgColor, emailContainerBg) : null;
+      const builtText = emailHtmlMode ? generatePlainText(emailBlocks) : null;
+      const payload = {
+        name: emailForm.name,
+        body: (emailHtmlMode ? builtText : null) || emailForm.body || "",
+        email_subject: emailForm.subject || null,
+        email_html: builtHtml,
+        tags: emailForm.tags || null,
+      };
+      editing
+        ? await apiPut(`/templates/${editing.id}`, payload)
+        : await apiPost("/templates/email", payload);
+      setOpen(false);
+      load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveQR = async (e: React.FormEvent) => {
@@ -513,9 +580,14 @@ export default function TemplatesPage() {
     );
   }
 
-  if (!waConnected) {
+  if (!waConnected && channel === "whatsapp") {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-6">
+        {/* Channel tab switcher (shown even on not-connected screen) */}
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 z-10">
+          <button onClick={() => setChannel("whatsapp")} className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm">WhatsApp</button>
+          <button onClick={() => setChannel("email")} className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Email</button>
+        </div>
         <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
           <svg
             className="w-8 h-8 text-gray-400 dark:text-gray-500"
@@ -558,85 +630,105 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Templates
-          </h1>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-            {isMetaMode
-              ? "Meta Business API templates — submitted for approval by Meta"
-              : "Reusable WhatsApp message templates with dynamic variables"}
+      {/* Header + Tab Switcher + Buttons — single row, switcher truly centered */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        {/* Left: title */}
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Templates</h1>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5 hidden sm:block">
+            {channel === "all"
+              ? `${templates.length} template${templates.length !== 1 ? "s" : ""} across all channels`
+              : channel === "email"
+                ? "Email templates"
+                : isMetaMode ? "Meta API templates" : "WhatsApp templates"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {allTags.length > 0 && (
-            <button
-              onClick={() => {
-                setTagMgmtOpen(true);
-                setSelectedTag(allTags[0]);
-              }}
-              className={BTN_G}
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+
+        {/* Center: tab switcher */}
+        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl shrink-0">
+          {(["all", "whatsapp", "email"] as const).map((tab) => {
+            const active = channel === tab;
+            const label = tab === "all" ? "All" : tab === "whatsapp" ? "WhatsApp" : "Email";
+            const count = tab === "all" ? templates.length : tab === "whatsapp" ? templates.filter(t => t.connection_type !== "email").length : templates.filter(t => t.connection_type === "email").length;
+            return (
+              <button
+                key={tab}
+                onClick={() => setChannel(tab)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  active
+                    ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                }`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
-                />
+                {tab === "all" && (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                )}
+                {tab === "whatsapp" && (
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                )}
+                {tab === "email" && (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                )}
+                <span className="hidden sm:inline">{label}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                  active ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"
+                         : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                }`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-2 justify-end">
+          {allTags.length > 0 && (
+            <button onClick={() => { setTagMgmtOpen(true); setSelectedTag(allTags[0]); }} className={BTN_G}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
               </svg>
-              Manage Tags
+              <span className="hidden lg:inline">Manage Tags</span>
             </button>
           )}
-          {isMetaMode && (
+          {isMetaMode && channel === "whatsapp" && (
             <button onClick={handleSync} disabled={syncing} className={BTN_G}>
-              {syncing ? (
-                <Spinner />
-              ) : (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
+              {syncing ? <Spinner /> : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               )}
-              Sync from Meta
+              <span className="hidden lg:inline">Sync from Meta</span>
             </button>
           )}
-          <button onClick={openNew} className={BTN_P}>
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            New Template
-          </button>
+          {channel === "all" ? (
+            <>
+              <button onClick={() => { setChannel("whatsapp"); setTimeout(openNew, 50); }} className={BTN_G}>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z" /></svg>
+                <span className="hidden sm:inline">New WA</span>
+              </button>
+              <button onClick={() => { setChannel("email"); setTimeout(openNew, 50); }} className={BTN_P}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                <span className="hidden sm:inline">New Email</span>
+              </button>
+            </>
+          ) : (
+            <button onClick={openNew} className={BTN_P}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">{channel === "email" ? "New Email" : "New Template"}</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Mode indicator */}
+      {/* Mode indicator (WA only) */}
+      {channel === "whatsapp" && (
       <div
         className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-xs font-semibold ${
           isMetaMode
@@ -661,19 +753,22 @@ export default function TemplatesPage() {
           ? "You are connected via Meta Business API. Templates require Meta approval before use."
           : "You are connected via QR Code. Templates are sent directly without approval."}
       </div>
+      )}
 
       {visibleTemplates.length === 0 ? (
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
           <EmptyState
-            title={isMetaMode ? "No Meta templates yet" : "No templates yet"}
+            title={channel === "email" ? "No email templates yet" : isMetaMode ? "No Meta templates yet" : "No templates yet"}
             description={
-              isMetaMode
-                ? "Create a template and submit it to Meta for approval, or sync existing ones."
-                : "Create templates with dynamic variables like {{name}} and {{phone}} for personalized messaging."
+              channel === "email"
+                ? "Create email templates with HTML design and plain-text fallback for automated campaigns."
+                : isMetaMode
+                  ? "Create a template and submit it to Meta for approval, or sync existing ones."
+                  : "Create templates with dynamic variables like {{name}} and {{phone}} for personalized messaging."
             }
             action={
               <div className="flex gap-2">
-                {isMetaMode && (
+                {isMetaMode && channel === "whatsapp" && (
                   <button
                     onClick={handleSync}
                     disabled={syncing}
@@ -683,7 +778,7 @@ export default function TemplatesPage() {
                   </button>
                 )}
                 <button onClick={openNew} className={BTN_P}>
-                  {isMetaMode ? "Create & Submit" : "Create Template"}
+                  {channel === "email" ? "Create Email Template" : isMetaMode ? "Create & Submit" : "Create Template"}
                 </button>
               </div>
             }
@@ -698,25 +793,36 @@ export default function TemplatesPage() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 grad-3">
-                    <svg
-                      className="w-4 h-4 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                      />
-                    </svg>
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${t.connection_type === "email" ? "bg-gradient-to-br from-emerald-500 to-teal-600" : "grad-3"}`}>
+                    {t.connection_type === "email" ? (
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-4 h-4 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                        />
+                      </svg>
+                    )}
                   </div>
                   <div className="min-w-0">
                     <h3 className="font-bold text-sm text-gray-900 dark:text-white truncate">
                       {t.name}
                     </h3>
+                    {t.email_subject && (
+                      <p className="text-xs text-gray-400 truncate">
+                        {t.email_subject}
+                      </p>
+                    )}
                     {t.meta_template_name && (
                       <p className="text-xs text-gray-400 font-mono truncate">
                         {t.meta_template_name}
@@ -725,7 +831,7 @@ export default function TemplatesPage() {
                   </div>
                 </div>
                 <div className="flex gap-1.5 shrink-0 items-center flex-wrap justify-end">
-                  {isMetaMode && (
+                  {isMetaMode && channel === "whatsapp" && (
                     <button
                       onClick={() => handleRefreshStatus(t.id)}
                       title="Refresh status"
@@ -747,7 +853,7 @@ export default function TemplatesPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => (isMetaMode ? openMetaEdit(t) : openEdit(t))}
+                    onClick={() => (isMetaMode && channel === "whatsapp" ? openMetaEdit(t) : openEdit(t))}
                     className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all"
                   >
                     Edit
@@ -771,7 +877,7 @@ export default function TemplatesPage() {
               </div>
 
               {/* Meta badges */}
-              {isMetaMode && (
+              {isMetaMode && channel === "whatsapp" && (
                 <div className="flex items-center gap-2 flex-wrap">
                   <CategoryBadge category={t.meta_category} />
                   <StatusBadge status={t.meta_status} />
@@ -780,6 +886,33 @@ export default function TemplatesPage() {
                       {t.meta_language}
                     </span>
                   )}
+                </div>
+              )}
+
+              {/* Channel badge in "all" view */}
+              {channel === "all" && (
+                <div className="flex items-center gap-2">
+                  {t.connection_type === "email" ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800 flex items-center gap-1">
+                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      Email
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800 flex items-center gap-1">
+                      <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z" /></svg>
+                      WhatsApp
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Email type badge */}
+              {t.connection_type === "email" && channel !== "all" && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {t.email_html && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800">HTML</span>
+                  )}
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700">Plain text</span>
                 </div>
               )}
 
@@ -801,28 +934,43 @@ export default function TemplatesPage() {
                 </div>
               )}
 
-              {/* WhatsApp bubble preview */}
-              <div className="rounded-xl bg-[#e5ddd5] dark:bg-[#0b1413] p-3 mt-1">
-                {t.meta_header_image_url && (
-                  <img
-                    src={toDirectImageUrl(t.meta_header_image_url)}
-                    alt="Header"
-                    className="w-full h-28 object-cover rounded-xl mb-2"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                )}
-                <div className="bg-white dark:bg-[#1f2c34] rounded-2xl rounded-tl-sm px-3 py-2.5 shadow-sm max-h-40 overflow-hidden relative">
-                  <p className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed line-clamp-6">
-                    {prev(t.body)}
-                  </p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-600 text-right mt-1">
-                    12:00 PM ✓✓
-                  </p>
-                  <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white dark:from-[#1f2c34] to-transparent pointer-events-none" />
+              {/* Preview */}
+              {t.connection_type === "email" ? (
+                <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden mt-1">
+                  <div className="bg-gray-50 dark:bg-gray-800/60 px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Subject</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300 font-medium truncate">{t.email_subject || "(no subject)"}</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-900 px-3 py-2.5 max-h-28 overflow-hidden relative">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed line-clamp-4">
+                      {prev(t.body) || "(no body)"}
+                    </p>
+                    <div className="absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-white dark:from-gray-900 to-transparent pointer-events-none" />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="rounded-xl bg-[#e5ddd5] dark:bg-[#0b1413] p-3 mt-1">
+                  {t.meta_header_image_url && (
+                    <img
+                      src={toDirectImageUrl(t.meta_header_image_url)}
+                      alt="Header"
+                      className="w-full h-28 object-cover rounded-xl mb-2"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  )}
+                  <div className="bg-white dark:bg-[#1f2c34] rounded-2xl rounded-tl-sm px-3 py-2.5 shadow-sm max-h-40 overflow-hidden relative">
+                    <p className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed line-clamp-6">
+                      {prev(t.body)}
+                    </p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-600 text-right mt-1">
+                      12:00 PM ✓✓
+                    </p>
+                    <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white dark:from-[#1f2c34] to-transparent pointer-events-none" />
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -868,18 +1016,88 @@ export default function TemplatesPage() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        wide={isMetaMode}
+        wide={(isMetaMode && channel === "whatsapp") || (channel === "email" && emailHtmlMode)}
         title={
-          isMetaMode
-            ? "New Meta Template"
-            : editing
-              ? "Edit Template"
-              : "New Template"
+          channel === "email"
+            ? editing ? "Edit Email Template" : "New Email Template"
+            : isMetaMode
+              ? "New Meta Template"
+              : editing
+                ? "Edit Template"
+                : "New Template"
         }
       >
-        {isMetaMode ? (
+        {channel === "email" ? (
+          /* ── Email Template Form ── */
+          <form onSubmit={handleSaveEmail} className="flex flex-col gap-3 flex-1 min-h-0">
+            {/* Top fields — always visible, never scroll away */}
+            <div className="grid grid-cols-3 gap-3 shrink-0">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Template Name *</label>
+                <input required value={emailForm.name} onChange={e => setEmailForm({ ...emailForm, name: e.target.value })} placeholder="e.g. Welcome Email" className={INPUT} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Subject *</label>
+                <input required value={emailForm.subject} onChange={e => setEmailForm({ ...emailForm, subject: e.target.value })} placeholder="Hello {{name}}, welcome!" className={INPUT} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Tags <span className="font-normal text-gray-400">(optional)</span></label>
+                <input value={emailForm.tags} onChange={e => setEmailForm({ ...emailForm, tags: e.target.value })} placeholder="welcome, onboarding" className={INPUT} />
+              </div>
+            </div>
+
+            {/* Mode toggle */}
+            <div className="flex items-center gap-3 shrink-0">
+              <button type="button" onClick={() => setEmailHtmlMode(false)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${!emailHtmlMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700"}`}>
+                Plain Text Only
+              </button>
+              <button type="button" onClick={() => setEmailHtmlMode(true)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${emailHtmlMode ? "bg-indigo-600 text-white border-indigo-600" : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700"}`}>
+                Visual HTML Builder
+              </button>
+            </div>
+
+            {emailHtmlMode ? (
+              /* ── Visual builder (two-column) — fills all remaining space ── */
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                <EmailBuilder
+                  blocks={emailBlocks}
+                  bgColor={emailBgColor}
+                  containerBg={emailContainerBg}
+                  onChange={(blocks, html, text) => {
+                    setEmailBlocks(blocks);
+                    setEmailForm(f => ({ ...f, email_html: html, body: text }));
+                  }}
+                  onBgColorChange={setEmailBgColor}
+                  onContainerBgChange={setEmailContainerBg}
+                />
+              </div>
+            ) : (
+              /* ── Plain text body — scrollable ── */
+              <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Body *</label>
+                  <VarDropdown onSelect={(v) => setEmailForm(f => ({ ...f, body: f.body + v }))} />
+                </div>
+                <textarea required value={emailForm.body} onChange={e => setEmailForm({ ...emailForm, body: e.target.value })}
+                  placeholder={"Hi {{name}},\n\nThanks for signing up!\n\nBest,\nYour Team"}
+                  className={`${INPUT} resize-none flex-1 min-h-[160px]`} />
+                <p className="text-xs text-gray-400 mt-1">Use {"{{name}}"}, {"{{email}}"}, {"{{company_name}}"} etc. for personalisation.</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-1 shrink-0">
+              <button type="button" onClick={() => setOpen(false)} className={`${BTN_G} flex-1`}>Cancel</button>
+              <button type="submit" disabled={saving} className={`${BTN_P} flex-1`}>
+                {saving && <Spinner className="text-white" />}
+                {editing ? "Save Changes" : "Create Template"}
+              </button>
+            </div>
+          </form>
+        ) : isMetaMode ? (
           /* ── Meta Template Form — two columns ── */
-          <form onSubmit={handleSaveMeta} className="flex gap-6 max-h-[78vh]">
+          <form onSubmit={handleSaveMeta} className="flex gap-6 flex-1 min-h-0">
             {/* Left: form fields */}
             <div className="flex-1 min-w-0 overflow-y-auto space-y-4 pr-2">
               <div>
@@ -1497,7 +1715,7 @@ export default function TemplatesPage() {
           </form>
         ) : (
           /* ── QR Template Form ── */
-          <form onSubmit={handleSaveQR} className="space-y-4">
+          <form onSubmit={handleSaveQR} className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-1">
             <div>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
                 Template Name *

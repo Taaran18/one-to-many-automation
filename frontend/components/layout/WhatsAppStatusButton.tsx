@@ -33,7 +33,7 @@ export default function WhatsAppStatusButton({
   forceOpen?: boolean;
   hideButton?: boolean;
 }) {
-  const [status, setStatus] = useState<WAStatus["status"]>("disconnected");
+  const [status, setStatus] = useState<WAStatus["status"] | "loading">("loading");
   const [waType, setWaType] = useState<"qr" | "meta">("qr");
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
@@ -77,9 +77,17 @@ export default function WhatsAppStatusButton({
     }
   }, []);
 
+  // Initial fetch + background polling
+  // - Polls every 6s while disconnected/reconnecting (catches Chrome startup)
+  // - Polls every 30s once connected (just to confirm still up)
   useEffect(() => {
     fetchStatus();
-  }, [fetchStatus]);
+    const iv = setInterval(() => {
+      fetchStatus();
+    }, status === "connected" ? 30_000 : 6_000);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status === "connected"]);
 
   // Auto-open when forceOpen flips to true
   useEffect(() => {
@@ -102,6 +110,15 @@ export default function WhatsAppStatusButton({
       }
     }
   }, [open]);
+
+  // If status arrives as qr_pending (e.g. from a previous session in DB)
+  // and no method has been picked yet, auto-show the QR panel.
+  useEffect(() => {
+    if (status === "qr_pending" && !method) {
+      setMethod("qr");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   const handleStartQR = async () => {
     if (autoQrStarted.current) return;
@@ -200,6 +217,7 @@ export default function WhatsAppStatusButton({
 
   const isConnected = status === "connected";
   const isPending = status === "qr_pending";
+  const isLoading = status === "loading";
 
   return (
     <>
@@ -210,7 +228,7 @@ export default function WhatsAppStatusButton({
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             isConnected
               ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
-              : isPending
+              : isPending || isLoading
                 ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
                 : "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 border border-red-200 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-900/30"
           }`}
@@ -219,7 +237,7 @@ export default function WhatsAppStatusButton({
             className={`w-2 h-2 rounded-full shrink-0 ${
               isConnected
                 ? "bg-emerald-500"
-                : isPending
+                : isPending || isLoading
                   ? "bg-amber-400 animate-pulse"
                   : "bg-red-500 animate-pulse"
             }`}
@@ -229,9 +247,11 @@ export default function WhatsAppStatusButton({
               ? info?.phone
                 ? `Connected · ${info.phone}`
                 : "WhatsApp Connected"
-              : isPending
-                ? "Connecting…"
-                : "Connect WhatsApp"}
+              : isLoading
+                ? "Checking…"
+                : isPending
+                  ? "Connecting…"
+                  : "Connect WhatsApp"}
           </span>
           <svg
             className="w-3 h-3 shrink-0 opacity-40"

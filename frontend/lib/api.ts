@@ -81,6 +81,18 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
   return res.json();
 }
 
+export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  const res = await apiFetch(path, {
+    method: "PATCH",
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(err.detail || "Request failed");
+  }
+  return res.json();
+}
+
 export async function apiDelete(path: string): Promise<void> {
   const res = await apiFetch(path, { method: "DELETE" });
   if (!res.ok) {

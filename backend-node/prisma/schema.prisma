@@ -1,0 +1,246 @@
+// Prisma schema for OneToMany Automation
+// Maps 1:1 to the existing Supabase tables created by the FastAPI/SQLAlchemy backend.
+//
+// First-time setup:
+//   1. Add DATABASE_URL and DIRECT_URL to .env
+//   2. Run: npx prisma db pull     (introspects the live DB — overrides this file)
+//      OR:  npx prisma generate    (generates the client from this file as-is)
+//
+// The schema below mirrors the SQLAlchemy models exactly so you can run
+// `prisma generate` without needing a live DB connection.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_URL")
+}
+
+// ─── Junction table: leads <-> lead_groups ───────────────────────────────────
+
+model LeadGroupMember {
+  lead_group_id Int
+  lead_id       Int
+
+  leadGroup LeadGroup @relation(fields: [lead_group_id], references: [id], onDelete: Cascade)
+  lead      Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@id([lead_group_id, lead_id])
+  @@map("lead_group_members")
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String?   @unique @db.VarChar(255)
+  phone_no     String?   @unique @db.VarChar(20)
+  password     String    @db.VarChar(512)
+  full_name    String?   @db.VarChar(255)
+  company_name String?   @db.VarChar(255)
+  company_type String?   @db.VarChar(100)
+  plan         String?   @default("free") @db.VarChar(50)
+  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+
+  leads             Lead[]
+  lead_groups       LeadGroup[]
+  templates         Template[]
+  campaigns         Campaign[]
+  whatsapp_session  WhatsAppSession?
+  email_session     EmailSession?
+  incoming_messages IncomingMessage[]
+  chat_settings     ChatSetting[]
+
+  @@map("users")
+}
+
+// ─── Leads ───────────────────────────────────────────────────────────────────
+
+model Lead {
+  id            Int       @id @default(autoincrement())
+  user_id       Int
+  name          String    @db.VarChar(255)
+  phone_no      String    @db.VarChar(30)
+  email         String?   @db.VarChar(255)
+  company_name  String?   @db.VarChar(255)
+  address_line1 String?   @db.VarChar(255)
+  address_line2 String?   @db.VarChar(255)
+  address_line3 String?   @db.VarChar(255)
+  pincode       String?   @db.VarChar(20)
+  city          String?   @db.VarChar(100)
+  state         String?   @db.VarChar(100)
+  country       String?   @db.VarChar(100)
+  tags          String?
+  status        String    @default("prospect") @db.VarChar(100)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @updatedAt @db.Timestamptz(6)
+
+  owner            User              @relation(fields: [user_id], references: [id])
+  groupMemberships LeadGroupMember[]
+  message_logs     MessageLog[]
+
+  @@unique([user_id, phone_no], name: "uq_lead_user_phone")
+  @@index([user_id, status], name: "ix_leads_user_status")
+  @@map("leads")
+}
+
+// ─── Lead Groups ─────────────────────────────────────────────────────────────
+
+model LeadGroup {
+  id          Int       @id @default(autoincrement())
+  user_id     Int
+  name        String    @db.VarChar(255)
+  description String?
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  owner             User              @relation(fields: [user_id], references: [id])
+  memberMemberships LeadGroupMember[]
+  campaigns         Campaign[]
+
+  @@map("lead_groups")
+}
+
+// ─── Templates ───────────────────────────────────────────────────────────────
+
+model Template {
+  id                    Int       @id @default(autoincrement())
+  user_id               Int
+  name                  String    @db.VarChar(255)
+  body                  String
+  tags                  String?
+  connection_type       String    @default("qr") @db.VarChar(10)
+  meta_template_name    String?   @db.VarChar(255)
+  meta_category         String?   @db.VarChar(50)
+  meta_status           String?   @db.VarChar(50)
+  meta_language         String?   @db.VarChar(20)
+  meta_header_image_url String?
+  meta_variable_map     String?
+  email_subject         String?
+  email_html            String?
+  created_at            DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime? @updatedAt @db.Timestamptz(6)
+
+  owner     User       @relation(fields: [user_id], references: [id])
+  campaigns Campaign[]
+
+  @@unique([user_id, meta_template_name], name: "uq_template_user_meta_name")
+  @@index([user_id, connection_type], name: "ix_templates_user_type")
+  @@map("templates")
+}
+
+// ─── Campaigns ───────────────────────────────────────────────────────────────
+
+model Campaign {
+  id                Int       @id @default(autoincrement())
+  user_id           Int
+  name              String    @db.VarChar(255)
+  template_id       Int?
+  lead_group_id     Int?
+  status            String    @default("draft") @db.VarChar(20)
+  scheduled_at      DateTime? @db.Timestamptz(6)
+  recurrence        String?   @default("one_time") @db.VarChar(20)
+  lead_group_ids    String?
+  tags              String?
+  recurrence_config String?
+  run_count         Int       @default(0)
+  stop_at           DateTime? @db.Timestamptz(6)
+  channel           String    @default("whatsapp") @db.VarChar(20)
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime? @updatedAt @db.Timestamptz(6)
+
+  owner        User        @relation(fields: [user_id], references: [id])
+  template     Template?   @relation(fields: [template_id], references: [id])
+  lead_group   LeadGroup?  @relation(fields: [lead_group_id], references: [id])
+  message_logs MessageLog[]
+
+  @@index([user_id, status], name: "ix_campaigns_user_status")
+  @@map("campaigns")
+}
+
+// ─── Message Logs ────────────────────────────────────────────────────────────
+
+model MessageLog {
+  id            Int       @id @default(autoincrement())
+  campaign_id   Int
+  lead_id       Int?
+  status        String    @default("sent") @db.VarChar(20)
+  sent_at       DateTime? @default(now()) @db.Timestamptz(6)
+  error_message String?
+  run_number    Int       @default(1)
+  body_text     String?
+
+  campaign Campaign  @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+
+  @@index([campaign_id, status], name: "ix_message_logs_campaign_status")
+  @@map("message_logs")
+}
+
+// ─── Incoming Messages ───────────────────────────────────────────────────────
+
+model IncomingMessage {
+  id            Int       @id @default(autoincrement())
+  user_id       Int
+  phone_no      String    @db.VarChar(30)
+  body          String
+  received_at   DateTime? @default(now()) @db.Timestamptz(6)
+  is_read       Boolean   @default(false)
+  wa_message_id String?   @db.VarChar(255)
+
+  owner User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, phone_no], name: "ix_incoming_user_phone")
+  @@map("incoming_messages")
+}
+
+// ─── Email Sessions ───────────────────────────────────────────────────────────
+
+model EmailSession {
+  id           Int       @id @default(autoincrement())
+  user_id      Int       @unique
+  email        String?   @db.VarChar(255)
+  display_name String?   @db.VarChar(255)
+  provider     String?   @db.VarChar(50)
+  smtp_host    String?   @db.VarChar(255)
+  smtp_port    Int?
+  status       String    @default("disconnected") @db.VarChar(20)
+  last_seen    DateTime? @db.Timestamptz(6)
+
+  owner User @relation(fields: [user_id], references: [id])
+
+  @@map("email_sessions")
+}
+
+// ─── Chat Settings (per-contact flags: archived) ─────────────────────────────
+
+model ChatSetting {
+  id          Int     @id @default(autoincrement())
+  user_id     Int
+  phone_no    String  @db.VarChar(30)
+  is_archived Boolean @default(false)
+
+  owner User @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id, phone_no], name: "uq_chat_setting_user_phone")
+  @@map("chat_settings")
+}
+
+// ─── WhatsApp Sessions ───────────────────────────────────────────────────────
+
+model WhatsAppSession {
+  id                Int       @id @default(autoincrement())
+  user_id           Int       @unique
+  status            String    @default("disconnected") @db.VarChar(20)
+  last_seen         DateTime? @db.Timestamptz(6)
+  wa_type           String    @default("qr") @db.VarChar(10)
+  meta_phone_id     String?   @db.VarChar(100)
+  meta_access_token String?
+  meta_waba_id      String?   @db.VarChar(100)
+
+  owner User @relation(fields: [user_id], references: [id])
+
+  @@map("whatsapp_sessions")
+}

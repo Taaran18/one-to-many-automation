@@ -1,0 +1,37 @@
+{
+  "name": "onetomany-backend-node",
+  "version": "1.0.0",
+  "description": "OneToMany Automation API — includes WhatsApp bridge and Email bridge in-process",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "db:pull": "prisma db pull",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "install:chrome": "npx puppeteer browsers install chrome"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-async-errors": "^3.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.15",
+    "puppeteer": "^22.15.0",
+    "qrcode": "^1.5.4",
+    "uuid": "^10.0.0",
+    "whatsapp-web.js": "^1.26.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7",
+    "prisma": "^5.22.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

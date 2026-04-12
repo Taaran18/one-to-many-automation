@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OneToMany – Client Documents</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .page-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .page-header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #0a2540;
+      letter-spacing: -0.5px;
+    }
+    .page-header p {
+      color: #556;
+      margin-top: 8px;
+      font-size: 1rem;
+    }
+    .cards {
+      display: flex;
+      gap: 32px;
+      max-width: 1100px;
+      margin: 0 auto;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.09);
+      padding: 36px 32px 28px;
+      width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: box-shadow 0.2s;
+    }
+    .card:hover { box-shadow: 0 8px 36px rgba(0,0,0,0.13); }
+    .card-icon { font-size: 2.4rem; }
+    .card h2 { font-size: 1.35rem; font-weight: 700; color: #0a2540; }
+    .card p { color: #556; font-size: 0.95rem; line-height: 1.6; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      padding: 13px 26px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.97rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: filter 0.15s, transform 0.12s;
+      width: fit-content;
+    }
+    .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-blue  { background: #1877f2; color: #fff; }
+    .btn-green { background: #25d366; color: #fff; }
+    .divider { border: none; border-top: 1px solid #eee; margin: 4px 0; }
+
+    /* ===== DOCUMENT STYLES (hidden, for export) ===== */
+    #doc-faq, #doc-proposal { display: none; }
+
+    .doc-body {
+      font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      color: #1a1a1a;
+      line-height: 1.65;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 60px 60px;
+      background: #fff;
+    }
+
+    /* Cover block */
+    .doc-cover {
+      text-align: center;
+      padding: 60px 0 48px;
+      border-bottom: 3px solid #1877f2;
+      margin-bottom: 48px;
+    }
+    .doc-cover .logo-text {
+      font-size: 28pt;
+      font-weight: 700;
+      color: #1877f2;
+      letter-spacing: -0.5px;
+    }
+    .doc-cover .doc-title {
+      font-size: 20pt;
+      font-weight: 700;
+      color: #0a2540;
+      margin-top: 18px;
+    }
+    .doc-cover .doc-subtitle {
+      font-size: 12pt;
+      color: #555;
+      margin-top: 10px;
+    }
+    .doc-cover .doc-meta {
+      margin-top: 28px;
+      font-size: 10pt;
+      color: #777;
+    }
+
+    /* Headings */
+    .doc-body h1 {
+      font-size: 18pt; font-weight: 700; color: #0a2540;
+      margin: 36px 0 10px; border-bottom: 2px solid #1877f2;
+      padding-bottom: 6px;
+    }
+    .doc-body h2 {
+      font-size: 13pt; font-weight: 700; color: #1877f2;
+      margin: 28px 0 8px;
+    }
+    .doc-body h3 {
+      font-size: 11.5pt; font-weight: 700; color: #0a2540;
+      margin: 20px 0 6px;
+    }
+
+    /* Paragraphs */
+    .doc-body p { margin-bottom: 10px; }
+
+    /* FAQ item */
+    .faq-item {
+      background: #f7f9fc;
+      border-left: 4px solid #1877f2;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px 12px;
+      margin-bottom: 18px;
+    }
+    .faq-q {
+      font-weight: 700;
+      font-size: 11pt;
+      color: #0a2540;
+      margin-bottom: 6px;
+    }
+    .faq-a { font-size: 10.5pt; color: #333; line-height: 1.65; }
+
+    /* Lists */
+    .doc-body ul { margin: 8px 0 12px 22px; }
+    .doc-body ul li { margin-bottom: 5px; }
+    .doc-body ol { margin: 8px 0 12px 22px; }
+    .doc-body ol li { margin-bottom: 5px; }
+
+    /* Table */
+    .doc-table {
+      width: 100%; border-collapse: collapse;
+      margin: 14px 0 20px; font-size: 10.5pt;
+    }
+    .doc-table th {
+      background: #0a2540; color: #fff;
+      padding: 9px 12px; text-align: left;
+      font-weight: 600; font-size: 10pt;
+    }
+    .doc-table td {
+      padding: 8px 12px; border-bottom: 1px solid #e0e4ea;
+      vertical-align: top;
+    }
+    .doc-table tr:nth-child(even) td { background: #f7f9fc; }
+
+    /* Feature blocks */
+    .feature-block {
+      border: 1px solid #dde3ee;
+      border-radius: 8px;
+      padding: 18px 20px 14px;
+      margin-bottom: 18px;
+    }
+    .feature-block h3 {
+      margin-top: 0;
+      color: #1877f2;
+      font-size: 12pt;
+    }
+
+    /* Callout */
+    .callout {
+      background: #eef4ff;
+      border-left: 4px solid #1877f2;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 18px 0;
+      font-size: 10.5pt;
+    }
+    .callout strong { color: #1877f2; }
+
+    /* Footer */
+    .doc-footer {
+      margin-top: 60px;
+      border-top: 1px solid #dde3ee;
+      padding-top: 16px;
+      font-size: 9.5pt;
+      color: #888;
+      text-align: center;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      background: #1877f2;
+      color: #fff;
+      font-size: 8.5pt;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 30px;
+      vertical-align: middle;
+      margin-left: 6px;
+      letter-spacing: 0.3px;
+    }
+    .badge-green { background: #25d366; }
+    .badge-orange { background: #f77f00; }
+  </style>
+</head>
+<body>
+
+<!-- ========== UI PAGE ========== -->
+<div class="page-header">
+  <h1>OneToMany — Client Documents</h1>
+  <p>Download the FAQ and Feature Proposal documents ready to send to your clients.</p>
+</div>
+
+<div class="cards">
+  <!-- Card 1 -->
+  <div class="card">
+    <div class="card-icon">❓</div>
+    <h2>Frequently Asked Questions (FAQ)</h2>
+    <hr class="divider">
+    <p>
+      A comprehensive FAQ document covering what OneToMany is, how it works, connection options,
+      data security, campaign types, contact management, inbox features, and more — written
+      clearly for non-technical clients.
+    </p>
+    <button class="btn btn-blue" onclick="downloadDoc('faq')">
+      ⬇ Download FAQ.doc
+    </button>
+  </div>
+
+  <!-- Card 2 -->
+  <div class="card">
+    <div class="card-icon">📋</div>
+    <h2>Features &amp; Requirements Proposal</h2>
+    <hr class="divider">
+    <p>
+      A professional feature proposal covering all platform capabilities, module descriptions,
+      technical integrations, security standards, and deployment specifications — suitable for
+      executive review and approval.
+    </p>
+    <button class="btn btn-green" onclick="downloadDoc('proposal')">
+      ⬇ Download Proposal.doc
+    </button>
+  </div>
+</div>
+
+
+<!-- ========== DOCUMENT 1: FAQ ========== -->
+<div id="doc-faq">
+<div class="doc-body">
+
+  <div class="doc-cover">
+    <div class="logo-text">OneToMany</div>
+    <div class="doc-title">Frequently Asked Questions</div>
+    <div class="doc-subtitle">WhatsApp Outreach &amp; Campaign Automation Platform</div>
+    <div class="doc-meta">
+      Prepared for Client Review &nbsp;|&nbsp; April 2026 &nbsp;|&nbsp; Confidential
+    </div>
+  </div>
+
+  <h1>Introduction</h1>
+  <p>
+    This document addresses the most common questions that businesses, marketing teams, and
+    decision-makers ask about <strong>OneToMany</strong> — our WhatsApp outreach and campaign
+    automation platform. Each answer has been crafted to give you a clear, complete understanding
+    of how the platform works and the value it delivers to your organisation.
+  </p>
+  <div class="callout">
+    <strong>Note:</strong> If you have a question not covered in this document, please reach out
+    to your dedicated account representative. We are happy to provide a personalised walkthrough
+    or live demonstration at your convenience.
+  </div>
+
+  <h1>General Questions</h1>
+
+  <div class="faq-item">
+    <div class="faq-q">Q1. What is OneToMany?</div>
+    <div class="faq-a">
+      OneToMany is a full-stack WhatsApp outreach and campaign automation platform built for
+      businesses that need to communicate with a large number of contacts efficiently and
+      personally. It allows you to manage leads, design personalised message templates, schedule
+      bulk campaigns, and handle two-way conversations — all from a single, easy-to-use
+      dashboard. Think of it as a WhatsApp-native CRM and marketing engine combined into one.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q2. Who is OneToMany built for?</div>
+    <div class="faq-a">
+      OneToMany is designed for small and medium-sized businesses (SMBs), marketing agencies,
+      sales teams, freelancers, and any organisation that relies on WhatsApp to communicate with
+      customers, leads, or prospects at scale. If your team is currently sending WhatsApp
+      messages manually one-by-one, OneToMany eliminates that effort entirely.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q3. Do I need any technical knowledge to use OneToMany?</div>
+    <div class="faq-a">
+      No. The platform is designed with a clean, intuitive interface that any business user can
+      navigate without technical training. Setting up a campaign involves three simple steps:
+      add your contacts, choose a message template, and schedule when to send it. Your account
+      team will handle initial setup and onboarding.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q4. Is OneToMany a WhatsApp-approved solution?</div>
+    <div class="faq-a">
+      OneToMany supports two modes of WhatsApp connectivity:
+      <ul>
+        <li><strong>QR Code Mode</strong> — uses WhatsApp Web (the same technology your phone
+        uses to connect to web.whatsapp.com). This mode is instant, free, and requires no
+        Meta Business approval.</li>
+        <li><strong>Meta Cloud API Mode</strong> — the official WhatsApp Business API provided
+        by Meta, suitable for larger enterprises requiring template pre-approval and higher
+        throughput. This mode is fully approved by Meta.</li>
+      </ul>
+      We recommend the appropriate mode based on your business volume and compliance needs.
+    </div>
+  </div>
+
+  <h1>Features &amp; Functionality</h1>
+
+  <div class="faq-item">
+    <div class="faq-q">Q5. Can I personalise messages for each contact?</div>
+    <div class="faq-a">
+      Yes. Every message template in OneToMany supports dynamic personalisation using variable
+      placeholders. For example, a template like <em>"Hi {{name}}, your order from {{company}}
+      is ready!"</em> will automatically be filled with each contact's actual name and company
+      when the campaign runs. You map each variable to the corresponding contact field in your
+      database — no manual editing required.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q6. Can I schedule campaigns in advance?</div>
+    <div class="faq-a">
+      Absolutely. OneToMany includes a powerful scheduling engine that lets you:
+      <ul>
+        <li>Send a one-time campaign at a specific date and time.</li>
+        <li>Set up recurring campaigns that run daily, weekly (on chosen days), or monthly
+        (on a chosen day of the month).</li>
+        <li>Define an optional end date so recurring campaigns stop automatically.</li>
+      </ul>
+      The platform's background scheduler runs continuously and fires campaigns at precisely the
+      right time — even if you're not logged in.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q7. Can I target different groups of contacts with different campaigns?</div>
+    <div class="faq-a">
+      Yes. OneToMany lets you organise contacts into named Lead Groups (e.g., "VIP Customers",
+      "Pending Renewals", "Trade Show Leads"). When creating a campaign, you select one or more
+      groups as the target audience. The same contact can belong to multiple groups, and you can
+      update group membership at any time.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q8. Can leads reply to my messages?</div>
+    <div class="faq-a">
+      Yes. OneToMany features a built-in two-way inbox that displays all conversations in a
+      WhatsApp-like interface. When a contact replies to a campaign message, their response
+      appears in your Chats inbox immediately. You can read and reply directly from the platform
+      without switching to your phone or WhatsApp Web.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q9. How many contacts can I manage on the platform?</div>
+    <div class="faq-a">
+      The platform itself does not impose a hard cap on the number of contacts. You can import
+      and manage thousands of leads, organise them across multiple groups, and run campaigns to
+      all of them. Practical limits may apply depending on your WhatsApp connection mode and the
+      server plan you are on. Your account team will advise on the right configuration for your
+      volume.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q10. Can I import my existing contacts into the platform?</div>
+    <div class="faq-a">
+      Yes. OneToMany supports bulk contact import, allowing you to upload your existing customer
+      or lead list at once. Individual contacts can also be added manually through the interface.
+      Each contact record supports rich profile data including name, phone number, email address,
+      company, physical address, tags, and status (e.g., prospect, customer).
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q11. What types of message templates does the platform support?</div>
+    <div class="faq-a">
+      OneToMany supports two types of templates aligned with your WhatsApp connection mode:
+      <ul>
+        <li><strong>Standard Templates (QR Mode):</strong> Free-text messages with named variable
+        placeholders. You write the message body as you would normally, and variables are resolved
+        per contact at send time.</li>
+        <li><strong>Meta API Templates:</strong> Structured templates with separate Header (text
+        or image), Body (with numbered parameters), Footer, and interactive Buttons (URL links,
+        phone-call buttons, quick reply buttons). These are submitted to Meta for approval before
+        use.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q12. Can I resend or duplicate a campaign?</div>
+    <div class="faq-a">
+      Yes. Any campaign can be duplicated with one click, creating a copy that you can adjust
+      and reschedule without starting from scratch. Completed campaigns can also be re-run
+      manually when needed.
+    </div>
+  </div>
+
+  <h1>WhatsApp Connection</h1>
+
+  <div class="faq-item">
+    <div class="faq-q">Q13. How do I connect my WhatsApp account to OneToMany?</div>
+    <div class="faq-a">
+      There are two options:
+      <ol>
+        <li><strong>QR Code Mode:</strong> Click "Connect WhatsApp" in the platform, scan the
+        displayed QR code using your WhatsApp mobile app (just like WhatsApp Web), and you're
+        connected within seconds. Your session is saved, so you won't need to scan again after
+        a restart.</li>
+        <li><strong>Meta Cloud API Mode:</strong> Enter your Meta Business Phone ID, Access Token,
+        and WhatsApp Business Account ID — credentials available from your Meta Business Manager.
+        The platform validates these instantly and stores them securely.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q14. What happens if my WhatsApp connection drops?</div>
+    <div class="faq-a">
+      In QR Code mode, the platform automatically attempts to restore your saved session on
+      restart, so brief interruptions do not require re-scanning. If a full disconnection occurs,
+      you will see a status indicator in the navigation bar and can re-connect with one click.
+      Any campaigns scheduled during the downtime will resume once connectivity is restored.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q15. Is there a difference in cost between the two connection modes?</div>
+    <div class="faq-a">
+      QR Code mode has no per-message fees beyond your standard WhatsApp usage. Meta Cloud API
+      mode follows Meta's conversation-based pricing model, where charges apply per 24-hour
+      conversation window. For high-volume enterprise clients, Meta's official pricing page
+      provides current rates. Your account team can help you determine the most cost-effective
+      approach for your expected message volume.
+    </div>
+  </div>
+
+  <h1>Security &amp; Privacy</h1>
+
+  <div class="faq-item">
+    <div class="faq-q">Q16. How is my data protected?</div>
+    <div class="faq-a">
+      OneToMany is built with multiple layers of security:
+      <ul>
+        <li><strong>Authentication:</strong> All access is protected by JSON Web Token (JWT)
+        authentication. Sessions expire automatically.</li>
+        <li><strong>Encrypted Credentials:</strong> Meta API access tokens are encrypted at rest
+        using AES-128 (Fernet) encryption before storage in the database. They are never stored
+        as plain text.</li>
+        <li><strong>Data Isolation:</strong> Every user's data (leads, templates, campaigns,
+        messages) is completely isolated from other users in the system.</li>
+        <li><strong>Secure Transport:</strong> All communication between the application and
+        external APIs (including WhatsApp) is conducted over HTTPS.</li>
+        <li><strong>Database Security:</strong> Data is stored in Supabase (PostgreSQL), a
+        managed cloud database with automatic SSL encryption in transit.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q17. Who can see my contacts and campaign data?</div>
+    <div class="faq-a">
+      Only users authenticated to your account can access your data. OneToMany enforces strict
+      per-user data isolation at the database level — your contacts, templates, campaigns, and
+      message history are never visible to other organisations or users on the platform.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q18. Does OneToMany store the messages sent to my contacts?</div>
+    <div class="faq-a">
+      Yes. The platform maintains a message log for every outbound campaign message and every
+      inbound reply. This gives you a complete audit trail and conversation history. These logs
+      are stored securely in your account's isolated database partition and can be viewed at
+      any time in the Chats inbox.
+    </div>
+  </div>
+
+  <h1>Analytics &amp; Reporting</h1>
+
+  <div class="faq-item">
+    <div class="faq-q">Q19. What analytics does OneToMany provide?</div>
+    <div class="faq-a">
+      The platform's Dashboard provides real-time insights including:
+      <ul>
+        <li>Total leads, templates, and campaigns in your account.</li>
+        <li>Number of leads who have received at least one campaign message (Leads Touched).</li>
+        <li>Total messages sent in the current month.</li>
+        <li>Customer vs. prospect breakdown across your lead database.</li>
+        <li>Campaigns scheduled for the next 7 days and next 24 hours.</li>
+        <li>A 30-day rolling chart of daily message volume.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q20. Can I track whether my messages were delivered?</div>
+    <div class="faq-a">
+      Yes. Every message sent through OneToMany is logged with a delivery status
+      (Sent, Delivered, or Failed). You can review the status of each recipient in any campaign's
+      message log. This lets you identify failed deliveries and take corrective action
+      (such as updating the contact's phone number).
+    </div>
+  </div>
+
+  <h1>Onboarding &amp; Support</h1>
+
+  <div class="faq-item">
+    <div class="faq-q">Q21. How quickly can we go live?</div>
+    <div class="faq-a">
+      For QR Code mode, the platform can be live and sending its first campaign within the same
+      day as onboarding — there is no approval waiting period. For Meta Cloud API mode, go-live
+      depends on Meta's template approval timeline, which typically takes 24–72 hours. Your
+      account team will coordinate with you on setup and guide you through each step.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q22. What kind of support is available?</div>
+    <div class="faq-a">
+      We provide dedicated onboarding support including platform configuration, contact import
+      assistance, template creation guidance, and a walkthrough of all features. Ongoing support
+      is available through your account representative. Enterprise clients have access to
+      priority technical support.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q23. Can the platform scale as our business grows?</div>
+    <div class="faq-a">
+      Yes. OneToMany is built on a scalable cloud infrastructure. As your contact database grows
+      or your campaign frequency increases, the underlying system scales to meet demand. We will
+      work with you proactively to ensure your plan and infrastructure match your evolving needs.
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    OneToMany WhatsApp Automation Platform &nbsp;|&nbsp; Client FAQ Document &nbsp;|&nbsp;
+    Confidential &nbsp;|&nbsp; April 2026 &nbsp;|&nbsp; All rights reserved.
+  </div>
+</div>
+</div>
+
+
+<!-- ========== DOCUMENT 2: PROPOSAL ========== -->
+<div id="doc-proposal">
+<div class="doc-body">
+
+  <div class="doc-cover">
+    <div class="logo-text">OneToMany</div>
+    <div class="doc-title">Features &amp; Requirements Proposal</div>
+    <div class="doc-subtitle">WhatsApp Outreach &amp; Campaign Automation Platform</div>
+    <div class="doc-meta">
+      Prepared for Client Review &nbsp;|&nbsp; April 2026 &nbsp;|&nbsp; Confidential
+    </div>
+  </div>
+
+  <!-- 1. Executive Summary -->
+  <h1>1. Executive Summary</h1>
+  <p>
+    <strong>OneToMany</strong> is a comprehensive, cloud-hosted WhatsApp outreach and campaign
+    automation platform engineered to help businesses scale their customer communication without
+    increasing headcount. The platform eliminates the manual, error-prone process of sending
+    individual WhatsApp messages by providing a centralised hub for lead management, template
+    authoring, campaign scheduling, and two-way conversation management.
+  </p>
+  <p>
+    Designed with both operational simplicity and enterprise-grade security in mind, OneToMany
+    is built on a modern technology stack and supports two methods of WhatsApp connectivity —
+    the QR Code mode for immediate deployment and the official Meta Cloud API for regulated
+    or high-volume environments.
+  </p>
+  <div class="callout">
+    <strong>Intended Audience:</strong> This proposal is intended for business owners, operations
+    leads, marketing directors, and IT decision-makers evaluating the platform for deployment
+    within their organisation.
+  </div>
+
+  <!-- 2. Platform Overview -->
+  <h1>2. Platform Overview</h1>
+  <p>
+    OneToMany is a multi-module, web-based platform accessible from any modern browser. It
+    consists of three interconnected services:
+  </p>
+  <table class="doc-table">
+    <tr>
+      <th>Component</th>
+      <th>Role</th>
+      <th>Technology</th>
+    </tr>
+    <tr>
+      <td><strong>Web Application (Frontend)</strong></td>
+      <td>User interface — dashboards, forms, inbox, analytics</td>
+      <td>Next.js 16, TypeScript, Tailwind CSS</td>
+    </tr>
+    <tr>
+      <td><strong>API Server (Backend)</strong></td>
+      <td>Business logic, data management, scheduling, security</td>
+      <td>FastAPI (Python), PostgreSQL via Supabase</td>
+    </tr>
+    <tr>
+      <td><strong>WhatsApp Bridge</strong></td>
+      <td>WhatsApp connectivity, message sending, incoming message handling</td>
+      <td>Node.js, Express, whatsapp-web.js</td>
+    </tr>
+  </table>
+  <p>
+    All three components are deployed on cloud infrastructure (Render / Vercel) and communicate
+    over secured HTTPS channels. The database layer uses Supabase-managed PostgreSQL with
+    automatic SSL encryption in transit.
+  </p>
+
+  <!-- 3. Feature Modules -->
+  <h1>3. Feature Modules</h1>
+  <p>
+    The following sections describe each functional module of the OneToMany platform in detail.
+  </p>
+
+  <!-- 3.1 -->
+  <h2>3.1 Lead Management</h2>
+  <div class="feature-block">
+    <h3>Description</h3>
+    <p>
+      The Lead Management module serves as the contact database of the platform. Businesses
+      can store, organise, and maintain detailed records of all their contacts — customers,
+      prospects, leads, or partners.
+    </p>
+    <h3>Capabilities</h3>
+    <ul>
+      <li>Add, edit, and delete individual contact records.</li>
+      <li>Rich contact profiles: name, phone number, email address, company, physical address
+      (street, city, state, country, pincode), tags, and status.</li>
+      <li>Contact statuses: <strong>Prospect</strong>, <strong>Customer</strong>, and custom
+      classifications.</li>
+      <li>Tag system for flexible, keyword-based organisation of contacts.</li>
+      <li>Full-text search across name, phone, and email fields.</li>
+      <li>Bulk contact import via structured data upload.</li>
+      <li>Lead Groups: create named groups (e.g., "Q1 Campaign Targets") and assign leads
+      to one or more groups.</li>
+      <li>Dynamic group membership — add or remove leads at any time.</li>
+    </ul>
+  </div>
+
+  <!-- 3.2 -->
+  <h2>3.2 Message Template Builder</h2>
+  <div class="feature-block">
+    <h3>Description</h3>
+    <p>
+      The Template Builder allows marketing teams to design reusable message templates that
+      can be personalised dynamically for each contact. The platform supports two template
+      types aligned with the connected WhatsApp mode.
+    </p>
+    <h3>Standard Templates (QR Mode)</h3>
+    <ul>
+      <li>Free-text message body with support for named variable placeholders
+      (e.g., <code>{{name}}</code>, <code>{{company}}</code>).</li>
+      <li>Variables are automatically resolved from each contact's profile at send time.</li>
+      <li>Tag and organise templates by category.</li>
+      <li>Preview resolved messages with sample contact data before sending.</li>
+    </ul>
+    <h3>Meta API Templates</h3>
+    <ul>
+      <li>Structured layout with independent components: <strong>Header</strong> (text or
+      image), <strong>Body</strong> (with numbered parameters), <strong>Footer</strong>, and
+      <strong>Buttons</strong>.</li>
+      <li>Button types supported: URL link buttons, phone-call buttons, and quick-reply
+      buttons.</li>
+      <li>Variable mapping: map numbered parameters (e.g., <code>{{1}}</code>) to specific
+      contact profile fields.</li>
+      <li>Image header upload via drag-and-drop interface (JPG, PNG, WebP, GIF).</li>
+      <li>Direct submission to Meta for approval from within the platform.</li>
+      <li>Real-time approval status tracking (Pending, Approved, Rejected).</li>
+    </ul>
+  </div>
+
+  <!-- 3.3 -->
+  <h2>3.3 Campaign Engine &amp; Scheduler</h2>
+  <div class="feature-block">
+    <h3>Description</h3>
+    <p>
+      The Campaign Engine is the core operational module of OneToMany. It enables businesses
+      to configure, schedule, and automate the delivery of messages to selected contact groups
+      at precisely defined times — with support for both one-time and recurring campaigns.
+    </p>
+    <h3>Campaign Configuration</h3>
+    <ul>
+      <li>Select one message template and one or more target Lead Groups per campaign.</li>
+      <li>Set a specific send date and time.</li>
+      <li>Optional campaign description and internal tags for organisation.</li>
+    </ul>
+    <h3>Scheduling Options</h3>
+    <table class="doc-table">
+      <tr>
+        <th>Schedule Type</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td><strong>One-Time</strong></td>
+        <td>Campaign fires once at the scheduled date and time.</td>
+      </tr>
+      <tr>
+        <td><strong>Daily</strong></td>
+        <td>Campaign repeats every day at the set time.</td>
+      </tr>
+      <tr>
+        <td><strong>Weekly</strong></td>
+        <td>Campaign repeats on selected day(s) of the week.</td>
+      </tr>
+      <tr>
+        <td><strong>Monthly</strong></td>
+        <td>Campaign repeats on a chosen day of each month.</td>
+      </tr>
+    </table>
+    <h3>Campaign Management</h3>
+    <ul>
+      <li>Optional stop date to automatically end recurring campaigns.</li>
+      <li>Campaign status lifecycle: Draft → Scheduled → Running → Completed / Failed.</li>
+      <li>One-click campaign duplication to speed up creation of similar campaigns.</li>
+      <li>Manual re-run capability for any completed campaign.</li>
+      <li>Per-recipient message logs with delivery status (Sent, Delivered, Failed).</li>
+      <li>Background scheduler checks and fires campaigns every 60 seconds — no manual
+      intervention required.</li>
+    </ul>
+  </div>
+
+  <!-- 3.4 -->
+  <h2>3.4 WhatsApp Connection Manager</h2>
+  <div class="feature-block">
+    <h3>Description</h3>
+    <p>
+      The Connection Manager allows users to link their WhatsApp account to the platform
+      using one of two modes, each suited to different business requirements.
+    </p>
+    <h3>QR Code Mode</h3>
+    <ul>
+      <li>Connect by scanning a QR code — exactly like WhatsApp Web.</li>
+      <li>No Meta Business account or API approval required.</li>
+      <li>Session is automatically saved and restored after platform restarts.</li>
+      <li>Real-time connection status displayed in the navigation bar.</li>
+      <li>Incoming message webhook — replies from contacts arrive in the inbox instantly.</li>
+    </ul>
+    <h3>Meta Cloud API Mode</h3>
+    <ul>
+      <li>Official WhatsApp Business API — suitable for higher volumes and regulated
+      industries.</li>
+      <li>Requires a Meta Business Phone ID, Access Token, and WhatsApp Business Account ID.</li>
+      <li>Credentials validated in real-time against Meta's Graph API upon connection.</li>
+      <li>Access tokens encrypted at rest using AES-128 (Fernet) — never stored as plain
+      text.</li>
+      <li>Supports structured Meta template messages with headers, footers, and buttons.</li>
+    </ul>
+  </div>
+
+  <!-- 3.5 -->
+  <h2>3.5 Two-Way Chat Inbox</h2>
+  <div class="feature-block">
+    <h3>Description</h3>
+    <p>
+      The Chat Inbox provides a familiar, WhatsApp-style interface for managing all inbound
+      and outbound conversations in one place. Teams no longer need to switch between the
+      platform and a phone to handle replies.
+    </p>
+    <h3>Capabilities</h3>
+    <ul>
+      <li>Unified conversation threads combining outbound campaign messages and inbound
+      contact replies.</li>
+      <li>Contact list sorted by most recent message activity.</li>
+      <li>Unread message counters per conversation.</li>
+      <li>Mark conversations as read.</li>
+      <li>Full-text search within message threads.</li>
+      <li>Send freeform replies to any contact directly from the platform.</li>
+      <li>Real-time updates as new messages are received from contacts.</li>
+    </ul>
+  </div>
+
+  <!-- 3.6 -->
+  <h2>3.6 Dashboard &amp; Analytics</h2>
+  <div class="feature-block">
+    <h3>Description</h3>
+    <p>
+      The Dashboard provides a real-time operational overview of the entire platform,
+      giving decision-makers and marketing managers instant visibility into key performance
+      metrics.
+    </p>
+    <h3>Metrics &amp; Insights</h3>
+    <ul>
+      <li>Total leads, templates, and active campaigns in the account.</li>
+      <li><strong>Leads Touched:</strong> number of unique contacts who have received at
+      least one campaign message.</li>
+      <li>Total messages dispatched in the current calendar month.</li>
+      <li>Lead segmentation breakdown: Customer vs. Prospect counts.</li>
+      <li>Campaigns scheduled for the next 7 days — upcoming schedule at a glance.</li>
+      <li>Campaigns firing in the next 24 hours — same-day schedule view.</li>
+      <li><strong>30-Day Message Volume Chart:</strong> a bar/line chart of daily message
+      output over the past 30 days for trend analysis.</li>
+    </ul>
+  </div>
+
+  <!-- 3.7 -->
+  <h2>3.7 Authentication &amp; User Management</h2>
+  <div class="feature-block">
+    <h3>Description</h3>
+    <p>
+      OneToMany uses industry-standard security practices for user authentication and
+      session management.
+    </p>
+    <h3>Capabilities</h3>
+    <ul>
+      <li>User registration and login via email address or phone number.</li>
+      <li>Passwords stored as secure hashes — never in plain text.</li>
+      <li>JSON Web Token (JWT) based session management with automatic expiry.</li>
+      <li>Protected routes — unauthenticated users are redirected to login automatically.</li>
+      <li>Auto-logout on session expiry or invalid token detection.</li>
+      <li>Full per-user data isolation: each account's data is logically separated at the
+      database level.</li>
+    </ul>
+  </div>
+
+  <!-- 3.8 -->
+  <h2>3.8 User Interface &amp; Experience</h2>
+  <div class="feature-block">
+    <h3>Capabilities</h3>
+    <ul>
+      <li><strong>Dark / Light Mode:</strong> users can toggle between dark and light themes
+      according to preference.</li>
+      <li><strong>Responsive Design:</strong> the interface adapts for both desktop and mobile
+      browser use.</li>
+      <li><strong>Image Upload:</strong> drag-and-drop image upload for template headers
+      (supports JPG, PNG, WebP, GIF formats).</li>
+      <li><strong>Real-Time Status Indicators:</strong> WhatsApp connection status is
+      displayed persistently in the navigation bar.</li>
+      <li><strong>Tag Management:</strong> inline tag creation and management across leads,
+      templates, and campaigns.</li>
+      <li><strong>Form Validation:</strong> client-side and server-side validation on all
+      input forms with clear error messaging.</li>
+      <li><strong>API Documentation:</strong> interactive API documentation is
+      auto-generated and available to technical users for integration purposes.</li>
+    </ul>
+  </div>
+
+  <!-- 4. Technical Architecture -->
+  <h1>4. Technical Architecture</h1>
+  <p>
+    The platform follows a decoupled three-tier architecture. The frontend communicates with
+    the backend exclusively via a secured REST API. The backend orchestrates all business
+    logic, data persistence, and external integrations. The WhatsApp Bridge operates as an
+    independent service, enabling clean separation of concerns.
+  </p>
+  <table class="doc-table">
+    <tr>
+      <th>Layer</th>
+      <th>Technology</th>
+      <th>Responsibility</th>
+    </tr>
+    <tr>
+      <td>Frontend</td>
+      <td>Next.js 16 (React 19, TypeScript, Tailwind CSS v4)</td>
+      <td>UI rendering, routing, JWT auth handling, API consumption</td>
+    </tr>
+    <tr>
+      <td>Backend API</td>
+      <td>FastAPI (Python), SQLAlchemy ORM</td>
+      <td>Business logic, authentication, scheduling, data management</td>
+    </tr>
+    <tr>
+      <td>Database</td>
+      <td>PostgreSQL via Supabase (cloud-managed)</td>
+      <td>Persistent data storage with SSL encryption in transit</td>
+    </tr>
+    <tr>
+      <td>WhatsApp Bridge</td>
+      <td>Node.js, Express, whatsapp-web.js, Puppeteer</td>
+      <td>QR code generation, session management, message relay</td>
+    </tr>
+    <tr>
+      <td>Scheduler</td>
+      <td>APScheduler (embedded in backend)</td>
+      <td>Campaign scheduling, background job execution (60-second tick)</td>
+    </tr>
+    <tr>
+      <td>File Handling</td>
+      <td>Backend static file server</td>
+      <td>Image upload and retrieval for template headers</td>
+    </tr>
+  </table>
+
+  <!-- 5. Integrations -->
+  <h1>5. External Integrations</h1>
+  <table class="doc-table">
+    <tr>
+      <th>Integration</th>
+      <th>Purpose</th>
+      <th>Details</th>
+    </tr>
+    <tr>
+      <td><strong>Meta Graph API (v19.0)</strong></td>
+      <td>WhatsApp Business API — enterprise messaging</td>
+      <td>Phone credential validation, template submission and approval, message sending via
+      Cloud API, WABA ID resolution</td>
+    </tr>
+    <tr>
+      <td><strong>WhatsApp Web Protocol</strong></td>
+      <td>QR Code connection — instant messaging</td>
+      <td>Via whatsapp-web.js library; QR generation, session persistence, outbound send,
+      inbound webhook</td>
+    </tr>
+    <tr>
+      <td><strong>Supabase (PostgreSQL)</strong></td>
+      <td>Cloud-managed relational database</td>
+      <td>All application data; SSL-encrypted, auto-backups, managed infrastructure</td>
+    </tr>
+  </table>
+
+  <!-- 6. Security -->
+  <h1>6. Security Standards</h1>
+  <table class="doc-table">
+    <tr>
+      <th>Security Measure</th>
+      <th>Implementation</th>
+    </tr>
+    <tr>
+      <td>Authentication</td>
+      <td>JSON Web Token (JWT) with automatic expiry and renewal</td>
+    </tr>
+    <tr>
+      <td>Password Security</td>
+      <td>Bcrypt hashing — passwords are never stored in recoverable form</td>
+    </tr>
+    <tr>
+      <td>API Credential Encryption</td>
+      <td>Meta access tokens encrypted using Fernet AES-128 symmetric encryption before
+      database storage</td>
+    </tr>
+    <tr>
+      <td>Transport Security</td>
+      <td>All client-server and service-to-service communication over HTTPS (TLS)</td>
+    </tr>
+    <tr>
+      <td>Data Isolation</td>
+      <td>Per-user data segregation enforced at the database query level</td>
+    </tr>
+    <tr>
+      <td>Route Protection</td>
+      <td>Server-side middleware validates JWT on every protected route before rendering</td>
+    </tr>
+    <tr>
+      <td>Database Security</td>
+      <td>Supabase PostgreSQL with SSL-encrypted connections and managed access controls</td>
+    </tr>
+  </table>
+
+  <!-- 7. Deployment -->
+  <h1>7. Deployment &amp; Infrastructure</h1>
+  <table class="doc-table">
+    <tr>
+      <th>Service</th>
+      <th>Provider</th>
+      <th>Notes</th>
+    </tr>
+    <tr>
+      <td>Frontend Web Application</td>
+      <td>Vercel</td>
+      <td>Global CDN delivery, automatic deployments from main branch</td>
+    </tr>
+    <tr>
+      <td>Backend API Server</td>
+      <td>Render</td>
+      <td>Python runtime, managed environment, auto-scaling</td>
+    </tr>
+    <tr>
+      <td>WhatsApp Bridge Service</td>
+      <td>Render</td>
+      <td>Node.js runtime, Puppeteer pre-installed, persistent session storage</td>
+    </tr>
+    <tr>
+      <td>Database</td>
+      <td>Supabase</td>
+      <td>Managed PostgreSQL, automatic backups, connection pooling</td>
+    </tr>
+  </table>
+  <p>
+    The platform is continuously deployed — updates are automatically published to production
+    upon approval, minimising downtime and ensuring clients always have access to the latest
+    version.
+  </p>
+
+  <!-- 8. Data Model -->
+  <h1>8. Data Model Overview</h1>
+  <p>
+    The platform stores all data in a normalised relational database. The core entities and
+    their relationships are summarised below:
+  </p>
+  <table class="doc-table">
+    <tr>
+      <th>Entity</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td><strong>User</strong></td>
+      <td>Registered account holder; owner of all data within the account</td>
+    </tr>
+    <tr>
+      <td><strong>Lead</strong></td>
+      <td>Individual contact record with profile data, tags, and status</td>
+    </tr>
+    <tr>
+      <td><strong>Lead Group</strong></td>
+      <td>Named collection of leads used for campaign targeting (many-to-many)</td>
+    </tr>
+    <tr>
+      <td><strong>Template</strong></td>
+      <td>Reusable message template (Standard or Meta API format)</td>
+    </tr>
+    <tr>
+      <td><strong>Campaign</strong></td>
+      <td>Scheduled outreach with template, target groups, recurrence settings, and status</td>
+    </tr>
+    <tr>
+      <td><strong>Message Log</strong></td>
+      <td>Record of each message sent per recipient, per campaign run, with delivery status</td>
+    </tr>
+    <tr>
+      <td><strong>Incoming Message</strong></td>
+      <td>Inbound reply or message received from a contact via WhatsApp</td>
+    </tr>
+    <tr>
+      <td><strong>WhatsApp Session</strong></td>
+      <td>Connection record storing mode (QR / Meta), status, and encrypted credentials</td>
+    </tr>
+  </table>
+
+  <!-- 9. Requirements Summary -->
+  <h1>9. Client Requirements &amp; Prerequisites</h1>
+  <p>
+    To deploy and operate OneToMany, the following are required from the client side:
+  </p>
+  <h2>9.1 Minimum Requirements</h2>
+  <ul>
+    <li>A WhatsApp account (personal or business) with an active phone number — for QR
+    Code mode.</li>
+    <li>A modern web browser (Google Chrome, Microsoft Edge, Mozilla Firefox, or Safari —
+    latest versions).</li>
+    <li>Stable internet connection.</li>
+    <li>A list of contacts to import (name and phone number at minimum).</li>
+  </ul>
+  <h2>9.2 For Meta Cloud API Mode (Optional)</h2>
+  <ul>
+    <li>An active Meta Business Manager account.</li>
+    <li>A verified WhatsApp Business Account (WABA) with an associated phone number.</li>
+    <li>A permanent or long-lived Meta System User Access Token with appropriate permissions.</li>
+    <li>Pre-approved message templates submitted through Meta's template manager
+    (or submitted via OneToMany).</li>
+  </ul>
+  <h2>9.3 Onboarding Information Required</h2>
+  <ul>
+    <li>Business name and primary contact details.</li>
+    <li>Initial contact list (CSV, Excel, or JSON format acceptable).</li>
+    <li>Initial message templates or content guidelines.</li>
+    <li>Campaign schedule and frequency preferences.</li>
+  </ul>
+
+  <!-- 10. Roadmap -->
+  <h1>10. Platform Assurances</h1>
+  <div class="callout">
+    <strong>Uptime &amp; Reliability:</strong> The platform is hosted on enterprise-grade cloud
+    infrastructure with managed databases and automatic failover. System health is continuously
+    monitored.
+  </div>
+  <div class="callout">
+    <strong>Data Ownership:</strong> All contact data, templates, and message history belong
+    entirely to the client. OneToMany does not use, share, or sell client data for any
+    purpose.
+  </div>
+  <div class="callout">
+    <strong>Scalability:</strong> The platform is architected to scale horizontally. As your
+    contact list grows or campaign frequency increases, infrastructure can be scaled to meet
+    demand with minimal disruption.
+  </div>
+  <div class="callout">
+    <strong>Continuous Updates:</strong> The platform is under active development. New features,
+    performance improvements, and security patches are deployed regularly. Clients benefit from
+    all updates automatically.
+  </div>
+
+  <!-- 11. Contact -->
+  <h1>11. Next Steps</h1>
+  <p>
+    We welcome the opportunity to take you through a live demonstration of the OneToMany
+    platform tailored to your specific use case. Please reach out to your dedicated account
+    representative to arrange:
+  </p>
+  <ul>
+    <li>A personalised product walkthrough (30–45 minutes).</li>
+    <li>A pilot deployment with your own contacts and templates.</li>
+    <li>A commercial proposal aligned to your contact volume and usage requirements.</li>
+  </ul>
+  <p>
+    We look forward to partnering with you and helping your team scale customer communication
+    through the power of WhatsApp automation.
+  </p>
+
+  <div class="doc-footer">
+    OneToMany WhatsApp Automation Platform &nbsp;|&nbsp; Features &amp; Requirements Proposal
+    &nbsp;|&nbsp; Confidential &nbsp;|&nbsp; April 2026 &nbsp;|&nbsp; All rights reserved.
+  </div>
+</div>
+</div>
+
+
+<!-- ========== DOWNLOAD LOGIC ========== -->
+<script>
+  function downloadDoc(type) {
+    const id   = type === 'faq' ? 'doc-faq' : 'doc-proposal';
+    const name = type === 'faq' ? 'OneToMany_FAQ.doc' : 'OneToMany_Features_Proposal.doc';
+
+    const contentEl = document.getElementById(id);
+
+    const styles = `
+      <style>
+        body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #1a1a1a; margin: 0; }
+        .doc-body { max-width: 800px; margin: 0 auto; padding: 60px; }
+        .doc-cover { text-align: center; padding: 60px 0 48px; border-bottom: 3px solid #1877f2; margin-bottom: 48px; }
+        .doc-cover .logo-text { font-size: 28pt; font-weight: 700; color: #1877f2; }
+        .doc-cover .doc-title { font-size: 20pt; font-weight: 700; color: #0a2540; margin-top: 18px; }
+        .doc-cover .doc-subtitle { font-size: 12pt; color: #555; margin-top: 10px; }
+        .doc-cover .doc-meta { margin-top: 28px; font-size: 10pt; color: #777; }
+        h1 { font-size: 18pt; font-weight: 700; color: #0a2540; margin: 36px 0 10px; border-bottom: 2px solid #1877f2; padding-bottom: 6px; }
+        h2 { font-size: 13pt; font-weight: 700; color: #1877f2; margin: 28px 0 8px; }
+        h3 { font-size: 11.5pt; font-weight: 700; color: #0a2540; margin: 20px 0 6px; }
+        p { margin-bottom: 10px; line-height: 1.65; }
+        .faq-item { background: #f7f9fc; border-left: 4px solid #1877f2; padding: 14px 18px 12px; margin-bottom: 18px; }
+        .faq-q { font-weight: 700; font-size: 11pt; color: #0a2540; margin-bottom: 6px; }
+        .faq-a { font-size: 10.5pt; color: #333; line-height: 1.65; }
+        ul, ol { margin: 8px 0 12px 22px; }
+        li { margin-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 10.5pt; }
+        th { background: #0a2540; color: #fff; padding: 9px 12px; text-align: left; font-weight: 600; }
+        td { padding: 8px 12px; border-bottom: 1px solid #e0e4ea; vertical-align: top; }
+        tr:nth-child(even) td { background: #f7f9fc; }
+        .feature-block { border: 1px solid #dde3ee; border-radius: 8px; padding: 18px 20px 14px; margin-bottom: 18px; }
+        .feature-block h3 { margin-top: 0; color: #1877f2; font-size: 12pt; }
+        .callout { background: #eef4ff; border-left: 4px solid #1877f2; padding: 14px 18px; margin: 18px 0; font-size: 10.5pt; }
+        .doc-footer { margin-top: 60px; border-top: 1px solid #dde3ee; padding-top: 16px; font-size: 9.5pt; color: #888; text-align: center; }
+        code { font-family: Consolas, monospace; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
+      </style>
+    `;
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${name.replace('.doc', '')}</title>
+  ${styles}
+</head>
+<body>
+  ${contentEl.innerHTML}
+</body>
+</html>`;
+
+    const blob = new Blob(['\ufeff', html], {
+      type: 'application/msword'
+    });
+
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+</script>
+
+</body>
+</html>

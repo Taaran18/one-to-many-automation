@@ -1,10 +1,9 @@
-# Environment / Secrets
+# ── Secrets ───────────────────────────────────────────────────────────────────
 .env
 .env.local
 .env.*.local
-backend/.env
 
-# Frontend (Next.js / Node)
+# ── Frontend (Next.js) ────────────────────────────────────────────────────────
 frontend/node_modules/
 frontend/.next/
 frontend/out/
@@ -18,47 +17,44 @@ frontend/.pnp.*
 frontend/.eslintcache
 frontend/tsconfig.tsbuildinfo
 
-# WhatsApp Bridge (Node / Express)
-whatsapp-bridge/node_modules/
-whatsapp-bridge/sessions/
-whatsapp-bridge/.wwebjs_cache/
-whatsapp-bridge/.wwebjs_auth/
-whatsapp-bridge/npm-debug.log*
-whatsapp-bridge/yarn-debug.log*
+# ── Backend Node (Express + in-process bridges) ───────────────────────────────
+backend-node/node_modules/
+backend-node/npm-debug.log*
+backend-node/yarn-debug.log*
 
-# Root package-lock
-package-lock.json
+# WhatsApp session data (Chrome profiles, auth tokens — never commit)
+backend-node/wa-sessions/
+backend-node/.cache/
 
-# Backend (Python / FastAPI)
-backend/__pycache__/
-backend/**/__pycache__/
-backend/*.py[cod]
-backend/*$py.class
-backend/venv/
-backend/.venv/
-backend/env/
-backend/.env
-backend/pip-log.txt
-backend/pip-delete-this-directory.txt
+# Email session credentials (contains plaintext SMTP passwords)
+backend-node/email-sessions.json
 
-# Scratch / dev-only scripts
-backend/reset_db.py
-backend/reset_db2.py
+# Uploaded files
+backend-node/uploads/
 
-# Database Files
+# ── Backend Python (archived — kept for reference) ───────────────────────────
+backend-python/__pycache__/
+backend-python/**/__pycache__/
+backend-python/*.py[cod]
+backend-python/*$py.class
+backend-python/venv/
+backend-python/.venv/
+backend-python/env/
+backend-python/.env
+backend-python/uploads/
+
+# ── Database files ────────────────────────────────────────────────────────────
 *.sqlite3
 *.db
 
-# OS / System Files
+# ── OS / System ───────────────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store
-.AppleDouble
-.LSOverride
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# IDEs / Editors
+# ── IDEs / Editors ────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 .claude/
@@ -66,16 +62,11 @@ Desktop.ini
 *.swo
 *.suo
 *.user
-*.userosscache
-*.sln.docstates
 
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────────────────
 logs/
 *.log
 
-# Misc
-.cache/
+# ── Misc ──────────────────────────────────────────────────────────────────────
 tmp/
-
-# Backend Uploads
-backend/uploads/
+package-lock.json

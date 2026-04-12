@@ -11,7 +11,7 @@ export default function MobileLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  const isChats = pathname === "/chats";
+  const isChats = pathname === "/chats" || pathname === "/mail";
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">

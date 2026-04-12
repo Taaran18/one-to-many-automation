@@ -2,9 +2,24 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ── Smooth theme transitions ── */
+/* ── Smooth theme transitions + scroll ── */
 html {
   transition: background-color 0.25s ease;
+  scroll-behavior: smooth;
+}
+
+/* ── Landing page utilities ── */
+.landing-gradient-text {
+  background: linear-gradient(135deg, #818cf8, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-glow {
+  background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,102,241,0.35), transparent);
+}
+.feature-card:hover {
+  transform: translateY(-2px);
 }
 
 /* ── Custom scrollbar ── */

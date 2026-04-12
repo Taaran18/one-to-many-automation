@@ -220,7 +220,7 @@ export default function CampaignDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800/60">
               <tr>
-                {["Run", "Lead", "Phone", "Status", "Sent At", "Error"].map(
+                {["Run", "Lead", campaign?.channel === "email" ? "Email" : "Phone", "Status", "Sent At", "Error"].map(
                   (h) => (
                     <th
                       key={h}
@@ -252,7 +252,9 @@ export default function CampaignDetailPage() {
                       {log.lead_name || `#${log.lead_id}`}
                     </td>
                     <td className="px-5 py-4 text-gray-500 dark:text-gray-400">
-                      {log.lead_phone || "—"}
+                      {campaign?.channel === "email"
+                        ? (log.lead_email || "—")
+                        : (log.lead_phone || "—")}
                     </td>
                     <td className="px-5 py-4">
                       <Badge label={log.status} />

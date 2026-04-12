@@ -39,9 +39,11 @@ export default function Modal({
         onClick={onClose}
       />
       <div
-        className={`relative w-full ${wide ? "max-w-4xl" : "max-w-lg"} bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden`}
+        className={`relative w-full ${wide ? "max-w-5xl" : "max-w-lg"} bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col`}
+        style={{ maxHeight: "calc(100vh - 3rem)" }}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+        {/* Header — never scrolls */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
           <h2 className="text-base font-bold text-gray-900 dark:text-white">
             {title}
           </h2>
@@ -64,7 +66,8 @@ export default function Modal({
             </svg>
           </button>
         </div>
-        <div className="px-6 py-5">{children}</div>
+        {/* Body — flex column so children can use flex-1 to fill remaining height */}
+        <div className="flex-1 min-h-0 overflow-hidden px-6 py-5 flex flex-col">{children}</div>
       </div>
     </div>,
     document.body,

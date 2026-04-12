@@ -5,8 +5,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import WhatsAppStatusButton from "./WhatsAppStatusButton";
+import EmailStatusButton from "./EmailStatusButton";
+import AccountModal from "./AccountModal";
 import { apiGet } from "@/lib/api";
 import type { WAStatus } from "@/lib/types";
+
+interface UserProfile {
+  email: string | null;
+  full_name: string | null;
+}
 
 const NAV = [
   {
@@ -104,20 +111,26 @@ const NAV = [
       </svg>
     ),
   },
+  {
+    href: "/mail",
+    label: "Mail",
+    icon: (
+      <svg
+        className="w-[18px] h-[18px] shrink-0"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.8}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+        />
+      </svg>
+    ),
+  },
 ];
-
-function getUserInfo(): { email: string; initial: string } {
-  if (typeof window === "undefined") return { email: "", initial: "U" };
-  try {
-    const token = localStorage.getItem("access_token");
-    if (!token) return { email: "", initial: "U" };
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    const email = payload.sub || "";
-    return { email, initial: email ? email[0].toUpperCase() : "U" };
-  } catch {
-    return { email: "", initial: "U" };
-  }
-}
 
 export default function Sidebar({
   mobileOpen = false,
@@ -128,11 +141,18 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { email, initial } =
-    typeof window !== "undefined" ? getUserInfo() : { email: "", initial: "U" };
 
-  const [waForceOpen, setWaForceOpen] = useState(false);
-  const [unreadChats, setUnreadChats] = useState(0);
+  const [profile, setProfile]           = useState<UserProfile | null>(null);
+  const [accountOpen, setAccountOpen]   = useState(false);
+  const [waForceOpen, setWaForceOpen]   = useState(false);
+  const [unreadChats, setUnreadChats]   = useState(0);
+
+  useEffect(() => {
+    apiGet<UserProfile>("/profile").then(setProfile).catch(() => {});
+  }, []);
+
+  const displayName = profile?.full_name || profile?.email || "User";
+  const initial     = displayName[0].toUpperCase();
 
   useEffect(() => {
     // Only show once per browser session
@@ -251,8 +271,9 @@ export default function Sidebar({
       {/* Divider */}
       <div className="mx-4 border-t border-gray-100 dark:border-gray-800/60" />
 
-      {/* WhatsApp status */}
-      <div className="px-3 pt-3">
+      {/* Email + WhatsApp status */}
+      <div className="px-3 pt-3 space-y-2">
+        <EmailStatusButton compact />
         <WhatsAppStatusButton
           compact
           onOpen={onMobileClose}
@@ -263,12 +284,18 @@ export default function Sidebar({
       {/* User row */}
       <div className="p-3 pt-2">
         <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
-            <span className="text-xs font-bold text-white">{initial}</span>
-          </div>
-          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 truncate flex-1 min-w-0">
-            {email || "User"}
-          </p>
+          {/* Clickable avatar + name */}
+          <button
+            onClick={() => setAccountOpen(true)}
+            className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+          >
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
+              <span className="text-xs font-bold text-white">{initial}</span>
+            </div>
+            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 truncate">
+              {displayName}
+            </p>
+          </button>
           <div className="flex items-center gap-0.5 shrink-0">
             <ThemeToggle />
             <button
@@ -293,6 +320,12 @@ export default function Sidebar({
           </div>
         </div>
       </div>
+
+      <AccountModal
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        onProfileUpdate={(p) => setProfile({ email: p.email, full_name: p.full_name })}
+      />
     </aside>
   );
 }

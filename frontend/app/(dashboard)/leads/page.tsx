@@ -29,10 +29,10 @@ const EMPTY_FORM = {
   state: "",
   country: "",
   tags: "",
-  status: "prospect",
+  status: "Prospect",
 };
 
-const PRESET_STATUSES = ["prospect", "customer", "hot lead", "cold lead", "negotiation", "closed"];
+const PRESET_STATUSES = ["Prospect", "Customer", "Hot Lead", "Cold Lead", "Negotiation", "Closed"];
 
 function parseCsv(text: string) {
   const lines = text.trim().split("\n");
@@ -166,7 +166,7 @@ function LeadFormFields({
       {/* Row: Name + Phone */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={LABEL}>Name *</label>
+          <label className={LABEL}>Name <span className="text-red-500">*</span></label>
           <input
             required
             type="text"
@@ -177,7 +177,7 @@ function LeadFormFields({
           />
         </div>
         <div>
-          <label className={LABEL}>Phone *</label>
+          <label className={LABEL}>Phone <span className="text-red-500">*</span></label>
           <input
             required
             type="text"
@@ -193,8 +193,9 @@ function LeadFormFields({
       {/* Row: Email + Company */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={LABEL}>Email</label>
+          <label className={LABEL}>Email <span className="text-red-500">*</span></label>
           <input
+            required
             type="email"
             value={f.email}
             onChange={(e) => setF({ ...f, email: e.target.value })}
