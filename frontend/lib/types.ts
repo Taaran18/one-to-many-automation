@@ -158,5 +158,6 @@ export interface ChatContact {
   last_message?: string;
   last_message_at?: string;
   unread_count: number;
+  is_archived?: boolean;
 }
 
