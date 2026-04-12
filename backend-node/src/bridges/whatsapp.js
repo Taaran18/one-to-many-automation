@@ -1,13 +1,13 @@
 'use strict';
 
 /**
- * WhatsApp Bridge — embedded in-process module.
+ * WhatsApp Bridge — Baileys implementation.
  *
- * Previously ran as a separate process on port 3001.
- * Now runs inside the backend process — no HTTP hops needed.
+ * Uses @whiskeysockets/baileys which communicates with WhatsApp via
+ * WebSocket directly — no Chrome / Puppeteer required.
+ * Works on shared hosting.
  */
 
-const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const path   = require('path');
 const fs     = require('fs');
@@ -15,184 +15,160 @@ const fs     = require('fs');
 process.on('uncaughtException',  err => console.error('[wa-bridge] Uncaught exception:',  err.message));
 process.on('unhandledRejection', r   => console.error('[wa-bridge] Unhandled rejection:', r));
 
-// ── Chrome path resolution ────────────────────────────────────────────────────
-
-function findChromePath() {
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    console.log('[wa-bridge] Using PUPPETEER_EXECUTABLE_PATH:', process.env.PUPPETEER_EXECUTABLE_PATH);
-    return process.env.PUPPETEER_EXECUTABLE_PATH;
-  }
-
-  try {
-    const puppeteer = require('puppeteer');
-    const p = puppeteer.executablePath();
-    if (p && fs.existsSync(p)) {
-      console.log('[wa-bridge] Using puppeteer-managed Chrome:', p);
-      return p;
-    }
-  } catch (e) {
-    console.warn('[wa-bridge] puppeteer.executablePath() failed:', e.message);
-  }
-
-  const isWindows = process.platform === 'win32';
-  // __dirname = backend-node/src/bridges → ../../ = backend-node/
-  const cacheBase = process.env.PUPPETEER_CACHE_DIR || path.join(__dirname, '../../.cache/puppeteer');
-  const cacheDir  = path.join(cacheBase, 'chrome');
-  console.log('[wa-bridge] Scanning for Chrome in:', cacheDir);
-
-  try {
-    if (fs.existsSync(cacheDir)) {
-      const prefix   = isWindows ? 'win64-' : 'linux-';
-      const versions = fs.readdirSync(cacheDir).filter(d => d.startsWith(prefix)).sort();
-      for (const v of versions) {
-        const bin = isWindows
-          ? path.join(cacheDir, v, 'chrome-win64', 'chrome.exe')
-          : path.join(cacheDir, v, 'chrome-linux64', 'chrome');
-        if (fs.existsSync(bin)) {
-          console.log('[wa-bridge] Found Chrome at:', bin);
-          return bin;
-        }
-      }
-    }
-  } catch (e) {
-    console.error('[wa-bridge] findChromePath scan error:', e.message);
-  }
-
-  console.warn('[wa-bridge] Chrome not found — run: cd backend-node && npx puppeteer browsers install chrome');
-  return undefined;
-}
-
-const CHROME_PATH  = findChromePath();
-// Sessions live at backend-node/wa-sessions/
+// Sessions stored at backend-node/wa-sessions/<user_id>/
 const SESSIONS_DIR = path.join(__dirname, '../../wa-sessions');
-
 if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 
-// Map of user_id (string) → { status, qrBase64, client, info }
+// Silent logger — suppresses Baileys' very verbose pino output
+const noopLogger = {
+  level: 'silent',
+  trace: () => {}, debug: () => {}, info: () => {},
+  warn:  () => {}, error: () => {}, fatal: () => {},
+  child: () => noopLogger,
+};
+
+// Map of user_id (string) → { status, qrBase64, sock, info }
 const sessions = new Map();
 
-function getSession(userId) { return sessions.get(String(userId)); }
+// Lazy-load Baileys (ESM package — must use dynamic import)
+let _baileys = null;
+async function getBaileys() {
+  if (!_baileys) {
+    _baileys = await import('@whiskeysockets/baileys');
+  }
+  return _baileys;
+}
 
 // ── Create / restore a session ────────────────────────────────────────────────
 
 async function createSession(userId) {
   const id = String(userId);
 
+  // Destroy previous instance if exists
   if (sessions.has(id)) {
     const old = sessions.get(id);
-    try { await old.client.destroy(); } catch (_) {}
+    try { old.sock?.end(undefined); } catch (_) {}
     sessions.delete(id);
   }
 
-  const session = { status: 'qr_pending', qrBase64: null, client: null, info: null };
+  const session = { status: 'qr_pending', qrBase64: null, sock: null, info: null };
   sessions.set(id, session);
 
-  const puppeteerOpts = {
-    headless: true,
-    args: [
-      '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
-      '--disable-gpu', '--no-first-run', '--no-zygote',
-      '--disable-extensions', '--disable-accelerated-2d-canvas', '--disable-background-networking',
-    ],
-    timeout: 60000,
-  };
-  if (CHROME_PATH) puppeteerOpts.executablePath = CHROME_PATH;
+  const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    fetchLatestBaileysVersion,
+  } = await getBaileys();
 
-  const client = new Client({
-    authStrategy: new LocalAuth({ clientId: `user_${id}`, dataPath: SESSIONS_DIR }),
-    puppeteer: puppeteerOpts,
+  const authDir = path.join(SESSIONS_DIR, `user_${id}`);
+  if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
+
+  const { state, saveCreds } = await useMultiFileAuthState(authDir);
+
+  let version = [2, 3000, 1015901307]; // fallback
+  try {
+    const v = await fetchLatestBaileysVersion();
+    version = v.version;
+  } catch (_) {}
+
+  const sock = makeWASocket({
+    version,
+    auth: state,
+    logger: noopLogger,
+    printQRInTerminal: false,
+    browser: ['OneToMany', 'Chrome', '1.0'],
+    connectTimeoutMs: 60_000,
+    defaultQueryTimeoutMs: 60_000,
+    syncFullHistory: false,
   });
 
-  session.client = client;
-  console.log(`[wa-bridge] [user ${id}] Initializing client...`);
+  session.sock = sock;
+  console.log(`[wa-bridge] [user ${id}] Initializing Baileys client...`);
 
-  client.on('qr', async qr => {
-    try {
-      session.qrBase64 = await qrcode.toDataURL(qr);
-      session.status   = 'qr_pending';
-      console.log(`[wa-bridge] [user ${id}] QR generated`);
-    } catch (err) {
-      console.error(`[wa-bridge] [user ${id}] QR generation error:`, err);
-    }
-  });
+  sock.ev.on('creds.update', saveCreds);
 
-  client.on('loading_screen', (percent, msg) => {
-    console.log(`[wa-bridge] [user ${id}] Loading: ${percent}% — ${msg}`);
-  });
-
-  client.on('ready', () => {
-    session.status   = 'connected';
-    session.qrBase64 = null;
-    try {
-      const info     = client.info;
-      const rawPhone = info.wid._serialized
-        .replace('@c.us', '')
-        .replace('@s.whatsapp.net', '');
-      session.info = {
-        name: info.pushname || 'Unknown',
-        phone: '+' + rawPhone,
-        connected_at: new Date().toISOString(),
-      };
-    } catch (_) {}
-    console.log(`[wa-bridge] [user ${id}] Connected — ${session.info?.phone}`);
-  });
-
-  // Forward incoming messages directly to the chats service (no HTTP)
-  client.on('message', async msg => {
-    try {
-      if (msg.fromMe || msg.isGroupMsg || msg.from === 'status@broadcast') return;
-
-      let fromPhone = msg.from
-        .replace(/@c\.us$/, '')
-        .replace(/@s\.whatsapp\.net$/, '')
-        .replace(/@lid$/, '');
-
-      if (msg.from.endsWith('@lid')) {
-        try {
-          const contact = await msg.getContact();
-          if (contact?.number) fromPhone = contact.number;
-        } catch (e) {
-          console.warn(`[wa-bridge] [user ${id}] Could not resolve @lid:`, e.message);
-        }
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+    if (qr) {
+      try {
+        session.qrBase64 = await qrcode.toDataURL(qr);
+        session.status   = 'qr_pending';
+        console.log(`[wa-bridge] [user ${id}] QR generated`);
+      } catch (e) {
+        console.error(`[wa-bridge] [user ${id}] QR error:`, e.message);
       }
+    }
 
-      // Lazy-require to avoid circular dependency at module load time
-      const chatsService = require('../modules/chats/chats.service');
-      await chatsService.handleIncoming({
-        user_id:       parseInt(id),
-        phone_no:      fromPhone,
-        body:          msg.body || '[media]',
-        wa_message_id: msg.id?._serialized || null,
-      });
+    if (connection === 'open') {
+      session.status   = 'connected';
+      session.qrBase64 = null;
+      try {
+        const user     = sock.user;
+        const rawPhone = (user?.id || '').split(':')[0].split('@')[0];
+        session.info   = {
+          name:         user?.name || 'Unknown',
+          phone:        rawPhone ? '+' + rawPhone : null,
+          connected_at: new Date().toISOString(),
+        };
+      } catch (_) {}
+      console.log(`[wa-bridge] [user ${id}] Connected — ${session.info?.phone}`);
+    }
 
-      console.log(`[wa-bridge] [user ${id}] Handled incoming from ${fromPhone}`);
-    } catch (e) {
-      console.error(`[wa-bridge] [user ${id}] message handler error:`, e.message);
+    if (connection === 'close') {
+      const code      = lastDisconnect?.error?.output?.statusCode;
+      const loggedOut = code === DisconnectReason.loggedOut;
+      console.log(`[wa-bridge] [user ${id}] Connection closed (code ${code}, loggedOut: ${loggedOut})`);
+
+      if (loggedOut) {
+        session.status = 'disconnected';
+        session.info   = null;
+        sessions.delete(id);
+      } else {
+        // Auto-reconnect for transient disconnects
+        console.log(`[wa-bridge] [user ${id}] Reconnecting in 3s...`);
+        setTimeout(() => createSession(id).catch(e =>
+          console.error(`[wa-bridge] [user ${id}] Reconnect error:`, e.message)
+        ), 3000);
+      }
     }
   });
 
-  client.on('auth_failure', () => {
-    session.status = 'disconnected';
-    session.info   = null;
-    console.log(`[wa-bridge] [user ${id}] Auth failure`);
-  });
+  // Forward incoming messages to chats service
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return;
+    for (const msg of messages) {
+      try {
+        if (msg.key.fromMe) continue;
+        const jid = msg.key.remoteJid || '';
+        if (jid.endsWith('@g.us') || jid === 'status@broadcast') continue;
 
-  client.on('disconnected', () => {
-    session.status = 'disconnected';
-    session.info   = null;
-    console.log(`[wa-bridge] [user ${id}] Disconnected`);
-  });
+        const body =
+          msg.message?.conversation ||
+          msg.message?.extendedTextMessage?.text ||
+          '[media]';
 
-  client.initialize().catch(err => {
-    console.error(`[wa-bridge] [user ${id}] Initialize error:`, err.message);
-    if (/executable|chrome/i.test(err.message)) {
-      console.error(`[wa-bridge] Chrome not found. Run: cd backend-node && npx puppeteer browsers install chrome`);
+        const fromPhone = jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+
+        // Lazy-require to avoid circular dependency
+        const chatsService = require('../modules/chats/chats.service');
+        await chatsService.handleIncoming({
+          user_id:       parseInt(id),
+          phone_no:      fromPhone,
+          body,
+          wa_message_id: msg.key.id || null,
+        });
+
+        console.log(`[wa-bridge] [user ${id}] Handled incoming from ${fromPhone}`);
+      } catch (e) {
+        console.error(`[wa-bridge] [user ${id}] message handler error:`, e.message);
+      }
     }
-    session.status = 'disconnected';
   });
 }
 
-// ── Public API (replaces the old HTTP endpoints) ──────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────────
+
+function getSession(userId) { return sessions.get(String(userId)); }
 
 function getStatus(userId) {
   const s = getSession(userId);
@@ -216,34 +192,47 @@ function getInfo(userId) {
 async function destroySession(userId) {
   const id = String(userId);
   const s  = sessions.get(id);
-  if (s?.client) {
-    try { await s.client.logout();  } catch (_) {}
-    try { await s.client.destroy(); } catch (_) {}
+  if (s?.sock) {
+    try { await s.sock.logout(); } catch (_) {}
+    try { s.sock.end(undefined); } catch (_) {}
   }
   sessions.delete(id);
+
+  // Remove persisted auth files so the session can't be restored
+  const authDir = path.join(SESSIONS_DIR, `user_${id}`);
+  try {
+    if (fs.existsSync(authDir)) fs.rmSync(authDir, { recursive: true, force: true });
+  } catch (_) {}
 }
 
 async function sendMessage(userId, phoneNo, message) {
   const s = getSession(userId);
   if (!s || s.status !== 'connected') throw new Error('WhatsApp not connected');
-  const msg = await s.client.sendMessage(phoneNo, message);
-  return msg.id._serialized;
+
+  // Normalise to Baileys JID format (digits only + @s.whatsapp.net)
+  const digits = String(phoneNo).replace(/\D/g, '');
+  const jid    = digits + '@s.whatsapp.net';
+
+  const result = await s.sock.sendMessage(jid, { text: message });
+  return result?.key?.id || null;
 }
 
 // ── Session restore on startup ────────────────────────────────────────────────
 
 async function restoreExistingSessions() {
-  const authDir = path.join(SESSIONS_DIR, 'wwebjs_auth');
-  if (!fs.existsSync(authDir)) {
+  if (!fs.existsSync(SESSIONS_DIR)) {
     console.log('[wa-bridge] No saved sessions — fresh start');
     return;
   }
 
   let entries;
   try {
-    entries = fs.readdirSync(authDir).filter(d => d.startsWith('session-user_'));
+    entries = fs.readdirSync(SESSIONS_DIR).filter(d => {
+      if (!d.startsWith('user_')) return false;
+      return fs.statSync(path.join(SESSIONS_DIR, d)).isDirectory();
+    });
   } catch (e) {
-    console.error('[wa-bridge] Could not read auth dir:', e.message);
+    console.error('[wa-bridge] Could not read sessions dir:', e.message);
     return;
   }
 
@@ -254,7 +243,7 @@ async function restoreExistingSessions() {
 
   console.log(`[wa-bridge] Found ${entries.length} saved session(s) — restoring...`);
   for (const dir of entries) {
-    const userId = dir.replace('session-user_', '');
+    const userId = dir.replace('user_', '');
     if (!userId) continue;
     console.log(`[wa-bridge] Restoring session for user ${userId}`);
     try { await createSession(userId); }
