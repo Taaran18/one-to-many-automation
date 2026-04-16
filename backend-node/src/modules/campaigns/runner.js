@@ -72,14 +72,14 @@ function buildMetaBodyParams(body, lead, variableMap) {
 
 // ── Message senders ───────────────────────────────────────────────────────────
 
-async function _sendViaMeta(phone, message, template, metaPhoneId, metaToken) {
+async function _sendViaMeta(phone, message, template, metaPhoneId, metaToken, lead) {
   let payload;
   if (template?.meta_template_name) {
     let variableMap = null;
     if (template.meta_variable_map) {
       try { variableMap = JSON.parse(template.meta_variable_map); } catch {}
     }
-    const params = buildMetaBodyParams(template.body || '', _mockLeadForParams(message), variableMap);
+    const params = buildMetaBodyParams(template.body || '', lead || {}, variableMap);
     const components = params.length > 0 ? [{ type: 'body', parameters: params }] : [];
     payload = {
       messaging_product: 'whatsapp',
@@ -115,14 +115,6 @@ async function _sendViaBridge(userId, phone, message) {
 
 async function _sendViaEmailBridge(userId, toEmail, subject, html, text) {
   await emailBridge.sendMail(userId, { to: toEmail, subject, html, text });
-}
-
-// Reconstruct lead-like object from already-resolved message for buildMetaBodyParams
-// (we pass the template body + lead separately to build correct params)
-function _mockLeadForParams(resolvedMessage) {
-  // This is called only when building params for Meta template — the body
-  // already has the correct params embedded via resolveTemplate.
-  return {};
 }
 
 // ── Main entry point ──────────────────────────────────────────────────────────
@@ -215,7 +207,7 @@ async function runCampaign(campaignId, userId) {
 
         try {
           if (useMeta) {
-            await _sendViaMeta(phone, message, campaign.template, metaPhoneId, metaToken);
+            await _sendViaMeta(phone, message, campaign.template, metaPhoneId, metaToken, lead);
           } else {
             await _sendViaBridge(userId, phone, message);
           }
