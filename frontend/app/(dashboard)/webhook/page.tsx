@@ -581,24 +581,46 @@ export default function WebhookPage() {
       )}
 
       {/* API Key Card */}
-      <KeyCard
-        label="API Key"
-        description="For developers — Postman, custom code, or any HTTP client. Pass as X-API-Key header."
-        accentClass="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
-        value={data?.key || null}
-        maskedValue={maskedApiKey}
-        revealed={apiRevealed}
-        onToggleReveal={() => setApiRevealed((v) => !v)}
-        copied={apiCopied}
-        onCopy={() => copyText(data?.key || "", setApiCopied)}
-        createdAt={data?.created_at}
-        lastUsed={data?.last_used}
-        onRegenerate={handleApiRegenerate}
-        regenerating={apiRegenerating}
-        onRevoke={() => setShowRevokeApi(true)}
-        generateLabel="Generate Key"
-        regenerateLabel="Regenerate"
-      />
+      {waType === "meta" ? (
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 space-y-3">
+          <div>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">API Key</p>
+            <p className="text-xs text-gray-400 mt-0.5">For developers — Postman, custom code, or any HTTP client.</p>
+          </div>
+          <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3.5">
+            <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <div>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                Not available with Meta Business API
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5 leading-relaxed">
+                API keys work only with QR-connected accounts. Switch to QR connection to use this feature.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <KeyCard
+          label="API Key"
+          description="For developers — Postman, custom code, or any HTTP client. Pass as X-API-Key header."
+          accentClass="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
+          value={data?.key || null}
+          maskedValue={maskedApiKey}
+          revealed={apiRevealed}
+          onToggleReveal={() => setApiRevealed((v) => !v)}
+          copied={apiCopied}
+          onCopy={() => copyText(data?.key || "", setApiCopied)}
+          createdAt={data?.created_at}
+          lastUsed={data?.last_used}
+          onRegenerate={handleApiRegenerate}
+          regenerating={apiRegenerating}
+          onRevoke={() => setShowRevokeApi(true)}
+          generateLabel="Generate Key"
+          regenerateLabel="Regenerate"
+        />
+      )}
 
       {/* Confirm: Revoke API Key */}
       <ConfirmModal
