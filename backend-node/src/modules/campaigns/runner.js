@@ -15,8 +15,10 @@ const axios = require('axios');
 const prisma = require('../../db/client');
 const { decrypt } = require('../../utils/encryption');
 const config = require('../../config');
+const waBridge    = require('../../bridges/whatsapp');
+const emailBridge = require('../../bridges/email');
 
-const { bridgeUrl, metaApiBase } = config.services;
+const { metaApiBase } = config.services;
 const { messageSendDelayMs, apiTimeoutMs } = config.scheduler;
 
 // ── Template variable resolution ──────────────────────────────────────────────
@@ -108,26 +110,11 @@ async function _sendViaMeta(phone, message, template, metaPhoneId, metaToken) {
 }
 
 async function _sendViaBridge(userId, phone, message) {
-  const resp = await axios.post(
-    `${bridgeUrl}/message/send`,
-    { user_id: userId, phone_no: `${phone}@c.us`, message },
-    { timeout: apiTimeoutMs }
-  );
-  if (!resp.data?.success) {
-    throw new Error(resp.data?.error || 'Bridge send failed');
-  }
+  await waBridge.sendMessage(userId, phone, message);
 }
 
 async function _sendViaEmailBridge(userId, toEmail, subject, html, text) {
-  const emailBridgeUrl = config.services.emailBridgeUrl;
-  const resp = await axios.post(
-    `${emailBridgeUrl}/message/send`,
-    { user_id: userId, to: toEmail, subject, html, text },
-    { timeout: apiTimeoutMs }
-  );
-  if (!resp.data?.success) {
-    throw new Error(resp.data?.error || 'Email bridge send failed');
-  }
+  await emailBridge.sendMail(userId, { to: toEmail, subject, html, text });
 }
 
 // Reconstruct lead-like object from already-resolved message for buildMetaBodyParams
