@@ -20,7 +20,10 @@ const dashboardRouter = require('./modules/dashboard/dashboard.routes');
 const whatsappRouter  = require('./modules/whatsapp/whatsapp.routes');
 const chatsRouter     = require('./modules/chats/chats.routes');
 const emailRouter     = require('./modules/email/email.routes');
+const apiKeysRouter   = require('./modules/apikeys/apikeys.routes');
 const { upload }      = require('./middleware/upload');
+const { authenticate } = require('./middleware/authenticate');
+const apiKeySvc       = require('./modules/apikeys/apikeys.service');
 
 const app = express();
 
@@ -65,6 +68,29 @@ app.use('/dashboard', dashboardRouter);
 app.use('/whatsapp',  whatsappRouter);
 app.use('/chats',     chatsRouter);
 app.use('/email',     emailRouter);
+app.use('/api-keys',  authenticate, apiKeysRouter);
+
+// ── Public API (API key auth, no session required) ────────────────────────────
+
+app.post('/v1/send', async (req, res) => {
+  const rawKey = (req.headers['x-api-key'] || '').trim();
+  if (!rawKey) return res.status(401).json({ detail: 'Missing X-API-Key header' });
+
+  const { phone, message } = req.body;
+  if (!phone || !message) return res.status(400).json({ detail: 'phone and message are required' });
+
+  await apiKeySvc.sendViaKey(rawKey, phone, message);
+  res.json({ success: true });
+});
+
+app.post('/v1/webhook/:token', async (req, res) => {
+  const { token } = req.params;
+  const { phone, message } = req.body;
+  if (!phone || !message) return res.status(400).json({ detail: 'phone and message are required' });
+
+  await apiKeySvc.sendViaWebhook(token, phone, message);
+  res.json({ success: true });
+});
 
 // ── Global error handler ──────────────────────────────────────────────────────
 // Produces FastAPI-compatible JSON: { detail: "..." }
