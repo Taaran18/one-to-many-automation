@@ -10,7 +10,7 @@
     "db:pull": "prisma db pull",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "install:chrome": "echo 'puppeteer removed — using Baileys (no Chrome needed)'"
+    "baileys:info": "echo 'Using Baileys — no Chrome needed'"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^5.22.0",
