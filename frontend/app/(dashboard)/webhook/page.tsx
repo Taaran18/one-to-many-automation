@@ -15,6 +15,7 @@ interface KeyData {
 
 interface WAStatus {
   status: string;
+  wa_type: "qr" | "meta";
 }
 
 // ─── Confirm Modal ────────────────────────────────────────────────────────────
@@ -385,6 +386,7 @@ function KeyCard({
 
 export default function WebhookPage() {
   const [waConnected, setWaConnected] = useState(false);
+  const [waType, setWaType]           = useState<"qr" | "meta">("qr");
   const [waForceOpen, setWaForceOpen] = useState(false);
   const [loading, setLoading]         = useState(true);
   const [data, setData]               = useState<KeyData | null>(null);
@@ -408,6 +410,7 @@ export default function WebhookPage() {
     try {
       const wa = await apiGet<WAStatus>("/whatsapp/status");
       setWaConnected(wa.status === "connected");
+      setWaType(wa.wa_type || "qr");
       if (wa.status === "connected") {
         const d = await apiGet<KeyData>("/api-keys");
         setData(d);
@@ -536,24 +539,46 @@ export default function WebhookPage() {
       </div>
 
       {/* Webhook URL Card */}
-      <KeyCard
-        label="Webhook URL"
-        description="For no-code tools — Zapier, Make, n8n. Token is embedded in the URL, no headers needed."
-        accentClass="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
-        value={webhookUrl}
-        maskedValue={maskedWebhookUrl}
-        revealed={whRevealed}
-        onToggleReveal={() => setWhRevealed((v) => !v)}
-        copied={whCopied}
-        onCopy={() => copyText(webhookUrl || "", setWhCopied)}
-        createdAt={data?.webhook_token ? data.created_at : null}
-        lastUsed={data?.webhook_last_used}
-        onRegenerate={handleWhRegenerate}
-        regenerating={whRegenerating}
-        onRevoke={() => setShowRevokeWh(true)}
-        generateLabel="Generate Webhook"
-        regenerateLabel="Regenerate"
-      />
+      {waType === "meta" ? (
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 space-y-3">
+          <div>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">Webhook URL</p>
+            <p className="text-xs text-gray-400 mt-0.5">For no-code tools — Zapier, Make, n8n.</p>
+          </div>
+          <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3.5">
+            <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <div>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                Not available with Meta Business API
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5 leading-relaxed">
+                Webhook URLs work only with QR-connected accounts. Switch to QR connection to use this feature.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <KeyCard
+          label="Webhook URL"
+          description="For no-code tools — Zapier, Make, n8n. Token is embedded in the URL, no headers needed."
+          accentClass="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+          value={webhookUrl}
+          maskedValue={maskedWebhookUrl}
+          revealed={whRevealed}
+          onToggleReveal={() => setWhRevealed((v) => !v)}
+          copied={whCopied}
+          onCopy={() => copyText(webhookUrl || "", setWhCopied)}
+          createdAt={data?.webhook_token ? data.created_at : null}
+          lastUsed={data?.webhook_last_used}
+          onRegenerate={handleWhRegenerate}
+          regenerating={whRegenerating}
+          onRevoke={() => setShowRevokeWh(true)}
+          generateLabel="Generate Webhook"
+          regenerateLabel="Regenerate"
+        />
+      )}
 
       {/* API Key Card */}
       <KeyCard
