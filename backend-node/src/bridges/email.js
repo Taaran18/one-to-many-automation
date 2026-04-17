@@ -92,7 +92,8 @@ async function buildOAuth2Session(userId, { email, name, refreshToken, accessTok
     },
   });
 
-  await transporter.verify();
+  // Skip verify() for OAuth2 — SMTP ports may be blocked on hosting providers.
+  // OAuth2 token validity is guaranteed by Google; verify() is not needed.
 
   sessions.set(String(userId), {
     email,
