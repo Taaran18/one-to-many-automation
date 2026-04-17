@@ -871,17 +871,26 @@ export default function TemplatesPage() {
             action={
               <div className="flex gap-2">
                 {isMetaMode && channel === "whatsapp" && (
-                  <button
-                    onClick={handleSync}
-                    disabled={syncing}
-                    className={BTN_G}
-                  >
+                  <button onClick={handleSync} disabled={syncing} className={BTN_G}>
                     {syncing ? <Spinner /> : "Sync from Meta"}
                   </button>
                 )}
-                <button onClick={openNew} className={BTN_P}>
-                  {channel === "email" ? "Create Email Template" : isMetaMode ? "Create & Submit" : "Create Template"}
-                </button>
+                {channel === "all" ? (
+                  <>
+                    <button onClick={() => { setChannel("whatsapp"); setTimeout(openNew, 50); }} className={BTN_G}>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                      Create WA Template
+                    </button>
+                    <button onClick={() => { setChannel("email"); setTimeout(openNew, 50); }} className={BTN_P}>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      Create Email Template
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={openNew} className={BTN_P}>
+                    {channel === "email" ? "Create Email Template" : isMetaMode ? "Create & Submit" : "Create WA Template"}
+                  </button>
+                )}
               </div>
             }
           />

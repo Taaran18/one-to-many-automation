@@ -110,4 +110,39 @@ async function updateProfile(user, body) {
   return getProfile(updated);
 }
 
-module.exports = { register, login, getProfile, updateProfile };
+/**
+ * Find or create a user from a Google OAuth profile, then return a JWT.
+ *
+ * @param {{ googleId: string, email: string, name: string, avatar: string }}
+ * @returns {{ access_token: string, token_type: 'bearer' }}
+ */
+async function googleCallback({ googleId, email, name, avatar }) {
+  let user = await prisma.user.findUnique({ where: { google_id: googleId } });
+
+  if (!user && email) {
+    user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data:  { google_id: googleId, avatar_url: avatar || null },
+      });
+    }
+  }
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email:     email || null,
+        google_id: googleId,
+        full_name: name  || null,
+        avatar_url: avatar || null,
+        plan:      'free',
+      },
+    });
+  }
+
+  const sub = user.email || user.phone_no;
+  return { access_token: createToken({ sub }), token_type: 'bearer' };
+}
+
+module.exports = { register, login, getProfile, updateProfile, googleCallback };

@@ -13,6 +13,7 @@
 const nodemailer = require('nodemailer');
 const fs         = require('fs');
 const path       = require('path');
+const config     = require('../config');
 
 // email-sessions.json lives at backend-node/
 const SESSIONS_FILE = path.join(__dirname, '../../email-sessions.json');
@@ -78,12 +79,47 @@ async function buildSession(userId, { email, password, provider, smtp_host, smtp
   console.log(`[email-bridge] [user ${userId}] Connected: ${email} via ${host}:${port}`);
 }
 
+async function buildOAuth2Session(userId, { email, name, refreshToken, accessToken }) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      type:         'OAuth2',
+      user:         email,
+      clientId:     config.google.clientId,
+      clientSecret: config.google.clientSecret,
+      refreshToken,
+      accessToken,
+    },
+  });
+
+  await transporter.verify();
+
+  sessions.set(String(userId), {
+    email,
+    display_name: name || email,
+    status:       'connected',
+    transporter,
+    provider:     'gmail',
+    authType:     'oauth2',
+  });
+
+  console.log(`[email-bridge] [user ${userId}] Connected via Gmail OAuth2: ${email}`);
+}
+
 // ── Public API (replaces the old HTTP endpoints) ──────────────────────────────
 
 async function connect(userId, params) {
   await buildSession(userId, params);
   const creds = loadCredentials();
-  creds[String(userId)] = params;
+  creds[String(userId)] = { ...params, authType: 'smtp' };
+  saveCredentials(creds);
+  return { status: 'connected', email: params.email };
+}
+
+async function connectWithOAuth2(userId, params) {
+  await buildOAuth2Session(userId, params);
+  const creds = loadCredentials();
+  creds[String(userId)] = { ...params, authType: 'oauth2' };
   saveCredentials(creds);
   return { status: 'connected', email: params.email };
 }
@@ -137,7 +173,12 @@ async function restoreExistingSessions() {
   console.log(`[email-bridge] Restoring ${userIds.length} session(s)...`);
   for (const userId of userIds) {
     try {
-      await buildSession(userId, creds[userId]);
+      const cred = creds[userId];
+      if (cred.authType === 'oauth2') {
+        await buildOAuth2Session(userId, cred);
+      } else {
+        await buildSession(userId, cred);
+      }
       console.log(`[email-bridge] Restored session for user ${userId}`);
     } catch (e) {
       console.error(`[email-bridge] Could not restore user ${userId}: ${e.message}`);
@@ -145,4 +186,4 @@ async function restoreExistingSessions() {
   }
 }
 
-module.exports = { connect, getStatus, disconnect, sendMail, restoreExistingSessions };
+module.exports = { connect, connectWithOAuth2, getStatus, disconnect, sendMail, restoreExistingSessions };

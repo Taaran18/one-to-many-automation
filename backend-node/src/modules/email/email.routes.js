@@ -1,8 +1,8 @@
 'use strict';
 
-const { Router } = require('express');
+const { Router }       = require('express');
 const { authenticate } = require('../../middleware/authenticate');
-const emailService = require('./email.service');
+const emailService     = require('./email.service');
 
 const router = Router();
 router.use(authenticate);

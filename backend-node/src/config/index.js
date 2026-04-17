@@ -30,10 +30,19 @@ const config = {
     tokenExpirySeconds: 480 * 60,
   },
 
+  // ── Google OAuth ──────────────────────────────────────────────────────────
+  google: {
+    clientId:          process.env.GOOGLE_CLIENT_ID,
+    clientSecret:      process.env.GOOGLE_CLIENT_SECRET,
+    callbackUrl:       process.env.GOOGLE_CALLBACK_URL       || 'http://localhost:8000/auth/google/callback',
+    emailCallbackUrl:  process.env.GOOGLE_EMAIL_CALLBACK_URL || 'http://localhost:8000/email/google/callback',
+  },
+
   // ── Application URLs ──────────────────────────────────────────────────────
   app: {
     /** Self-referential URL used to build uploaded image links. */
-    backendUrl: process.env.BACKEND_URL || 'http://localhost:8000',
+    backendUrl:  process.env.BACKEND_URL  || 'http://localhost:8000',
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
     /** Comma-separated list of allowed CORS origins. */
     allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
       .split(',')

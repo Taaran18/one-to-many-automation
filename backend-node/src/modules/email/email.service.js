@@ -193,4 +193,21 @@ async function deleteEmailContact(userId, leadId) {
   return { success: true };
 }
 
-module.exports = { getStatus, connect, disconnect, sendEmail, getEmailContacts, getEmailThread, composeDirect, deleteEmailContact };
+/**
+ * Connect a Gmail account via Google OAuth2 tokens.
+ */
+async function connectWithGoogle(userId, { email, name, refreshToken, accessToken }) {
+  if (!email || !refreshToken) throw httpError(400, 'Google OAuth did not return required tokens');
+
+  await emailBridge.connectWithOAuth2(userId, { email, name, refreshToken, accessToken });
+
+  await prisma.emailSession.upsert({
+    where:  { user_id: userId },
+    update: { email, display_name: name || email, provider: 'gmail', status: 'connected', last_seen: new Date(), google_refresh_token: refreshToken, google_access_token: accessToken || null },
+    create: { user_id: userId, email, display_name: name || email, provider: 'gmail', status: 'connected', last_seen: new Date(), google_refresh_token: refreshToken, google_access_token: accessToken || null },
+  });
+
+  return { status: 'connected', email };
+}
+
+module.exports = { getStatus, connect, connectWithGoogle, disconnect, sendEmail, getEmailContacts, getEmailThread, composeDirect, deleteEmailContact };

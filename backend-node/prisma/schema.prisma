@@ -39,7 +39,9 @@ model User {
   id           Int       @id @default(autoincrement())
   email        String?   @unique @db.VarChar(255)
   phone_no     String?   @unique @db.VarChar(20)
-  password     String    @db.VarChar(512)
+  password     String?   @db.VarChar(512)
+  google_id    String?   @unique @db.VarChar(255)
+  avatar_url   String?   @db.VarChar(512)
   full_name    String?   @db.VarChar(255)
   company_name String?   @db.VarChar(255)
   company_type String?   @db.VarChar(100)
@@ -201,15 +203,17 @@ model IncomingMessage {
 // ─── Email Sessions ───────────────────────────────────────────────────────────
 
 model EmailSession {
-  id           Int       @id @default(autoincrement())
-  user_id      Int       @unique
-  email        String?   @db.VarChar(255)
-  display_name String?   @db.VarChar(255)
-  provider     String?   @db.VarChar(50)
-  smtp_host    String?   @db.VarChar(255)
-  smtp_port    Int?
-  status       String    @default("disconnected") @db.VarChar(20)
-  last_seen    DateTime? @db.Timestamptz(6)
+  id                   Int       @id @default(autoincrement())
+  user_id              Int       @unique
+  email                String?   @db.VarChar(255)
+  display_name         String?   @db.VarChar(255)
+  provider             String?   @db.VarChar(50)
+  smtp_host            String?   @db.VarChar(255)
+  smtp_port            Int?
+  google_refresh_token String?
+  google_access_token  String?
+  status               String    @default("disconnected") @db.VarChar(20)
+  last_seen            DateTime? @db.Timestamptz(6)
 
   owner User @relation(fields: [user_id], references: [id])
 
